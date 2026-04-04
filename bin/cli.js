@@ -64,7 +64,7 @@ function loadPreset(presetPath) {
 
 function backupAndLog(filePath) {
   const bakPath = backup(filePath);
-  if (bakPath) console.log(`💾 백업: ${bakPath}`);
+  if (bakPath) console.log(`💾 Backup: ${bakPath}`);
 }
 
 function copySkills(src, dest) {
@@ -101,9 +101,9 @@ function init() {
   const denyCount = preset.permissions.deny?.length || 0;
   const pluginCount = Object.keys(preset.enabledPlugins || {}).length;
 
-  console.log('\n[설정]');
-  console.log(`  ✅ permissions: allow ${allowCount}개, deny ${denyCount}개`);
-  console.log(`  ✅ enabledPlugins: ${pluginCount}개`);
+  console.log('\n[Settings]');
+  console.log(`  ✅ permissions: ${allowCount} allow, ${denyCount} deny`);
+  console.log(`  ✅ enabledPlugins: ${pluginCount}`);
   console.log(`  ✅ marketplaces: ${Object.keys(preset.extraKnownMarketplaces || {}).join(', ')}`);
 
   const copiedSkills = copySkills(
@@ -111,13 +111,13 @@ function init() {
     path.join(CLAUDE_DIR, 'skills'),
   );
 
-  console.log(`\n[유저 스킬] (${copiedSkills.length}개)`);
+  console.log(`\n[User Skills] (${copiedSkills.length})`);
   for (const name of copiedSkills) {
     console.log(`  ✅ ${name}`);
   }
 
-  console.log('\n⚠️  플러그인은 다음 Claude Code 세션 시작 시 자동 설치됩니다.');
-  console.log('\n완료!');
+  console.log('\n⚠️  Plugins will be auto-installed on next Claude Code session.');
+  console.log('\nDone!');
 }
 
 function projectInit() {
@@ -142,8 +142,8 @@ function projectInit() {
     permissions: preset.permissions,
   });
 
-  console.log(`프로젝트: ${projectRoot}\n`);
-  console.log('[권한]');
+  console.log(`Project: ${projectRoot}\n`);
+  console.log('[Permissions]');
   console.log(`  ✅ allow: ${preset.permissions.allow.join(', ')}`);
 
   const copiedSkills = copySkills(
@@ -152,13 +152,13 @@ function projectInit() {
   );
 
   if (copiedSkills.length > 0) {
-    console.log(`\n[프로젝트 스킬] (${copiedSkills.length}개)`);
+    console.log(`\n[Project Skills] (${copiedSkills.length})`);
     for (const name of copiedSkills) {
       console.log(`  ✅ ${name}`);
     }
   }
 
-  console.log('\n완료!');
+  console.log('\nDone!');
 }
 
 const command = process.argv[2];
