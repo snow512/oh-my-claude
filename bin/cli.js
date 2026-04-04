@@ -82,11 +82,15 @@ function checkbox(items) {
     const selected = items.map(() => true); // all selected by default
     let cursor = 0;
 
-    function render() {
-      // Move cursor up to overwrite previous render
-      if (cursor >= 0) process.stdout.write(`\x1b[${items.length + 1}A`);
+    let firstRender = true;
 
-      console.log('  (↑↓ move, space toggle, a all, n none, enter confirm)\n');
+    function render() {
+      if (!firstRender) {
+        process.stdout.write(`\x1b[${items.length + 1}A\x1b[0J`);
+      }
+      firstRender = false;
+
+      console.log('  (↑↓ move, space toggle, a all, n none, enter confirm)');
       for (let i = 0; i < items.length; i++) {
         const check = selected[i] ? '◉' : '○';
         const arrow = i === cursor ? '›' : ' ';
@@ -96,13 +100,7 @@ function checkbox(items) {
       }
     }
 
-    // Initial render
-    console.log('  (↑↓ move, space toggle, a all, n none, enter confirm)\n');
-    for (let i = 0; i < items.length; i++) {
-      const check = selected[i] ? '◉' : '○';
-      const arrow = i === cursor ? '›' : ' ';
-      console.log(`  ${arrow} ${check} ${items[i].name} — ${items[i].desc}`);
-    }
+    render();
 
     process.stdin.setRawMode(true);
     process.stdin.resume();
