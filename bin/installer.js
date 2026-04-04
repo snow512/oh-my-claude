@@ -246,17 +246,18 @@ async function installStatusLine(settingsPath, useDefaults) {
 
 // --- Main: init ---
 
-async function runInit() {
+async function runInit(opts = {}) {
   renderBanner();
 
-  const useDefaults = await ask('Use defaults? (install everything)', true);
+  // --yes skips all prompts
+  const useDefaults = opts.yes || await ask('Use defaults? (install everything)', true);
 
-  // Detect system language, fall back to 'en'
+  // --lang=ko or auto-detect
   const sysLocale = (process.env.LANG || process.env.LC_ALL || process.env.LANGUAGE || 'en').toLowerCase();
   const detectedLang = sysLocale.startsWith('ko') ? 'ko' : 'en';
 
-  let lang = detectedLang;
-  if (!useDefaults) {
+  let lang = opts.lang || detectedLang;
+  if (!useDefaults && !opts.lang) {
     const defaultHint = detectedLang === 'ko' ? `en/${style('[ko]', C.gray)}` : `${style('[en]', C.gray)}/ko`;
     const rl = require('readline').createInterface({ input: process.stdin, output: process.stdout });
     lang = await new Promise((resolve) => {
@@ -327,7 +328,7 @@ async function runInit() {
 
 // --- Main: project-init ---
 
-function runProjectInit() {
+function runProjectInit(opts = {}) {
   console.log('\noh-my-claude project-init\n');
 
   let projectRoot;
@@ -341,8 +342,10 @@ function runProjectInit() {
   const settingsPath = path.join(claudeDir, 'settings.local.json');
   const preset = loadPreset('project.json');
 
-  const bakPath = backup(settingsPath);
-  if (bakPath) console.log(`  ${style('💾', C.gray)} ${style('Backup: ' + bakPath, C.gray)}`);
+  if (!opts.force) {
+    const bakPath = backup(settingsPath);
+    if (bakPath) console.log(`  ${style('💾', C.gray)} ${style('Backup: ' + bakPath, C.gray)}`);
+  }
 
   const existing = readJson(settingsPath) || {};
   writeJson(settingsPath, { ...existing, permissions: preset.permissions });
@@ -370,12 +373,12 @@ function runProjectInit() {
 
 // --- Clone: export current Claude environment ---
 
-async function runClone() {
+async function runClone(opts = {}) {
   renderBanner();
   console.log(`  ${style('Exporting current Claude environment...', C.bold)}\n`);
 
   const ts = timestamp();
-  const outDir = path.join(process.cwd(), `claude-env-${ts}`);
+  const outDir = opts.output || path.join(process.cwd(), `claude-env-${ts}`);
   fs.mkdirSync(outDir, { recursive: true });
 
   const items = [
@@ -419,12 +422,12 @@ async function runClone() {
 
 // --- Backup: snapshot ~/.claude/ ---
 
-async function runBackup() {
+async function runBackup(opts = {}) {
   renderBanner();
 
   const ts = timestamp();
   const tarName = `claude-backup-${ts}.tar.gz`;
-  const tarPath = path.join(process.cwd(), tarName);
+  const tarPath = opts.output || path.join(process.cwd(), tarName);
 
   console.log(`  ${style('Creating backup...', C.bold)}\n`);
 
@@ -450,7 +453,7 @@ async function runBackup() {
 
 // --- Restore: restore from backup ---
 
-async function runRestore(source) {
+async function runRestore(source, opts = {}) {
   renderBanner();
 
   if (!source) {
@@ -466,10 +469,12 @@ async function runRestore(source) {
 
   const stat = fs.statSync(source);
 
-  // Backup existing
-  const bakPath = backup(path.join(CLAUDE_DIR, 'settings.json'));
-  if (bakPath) {
-    console.log(`  ${style('💾', C.gray)} ${style('Backup: ' + bakPath, C.gray)}\n`);
+  // Backup existing (skip with --force)
+  if (!opts.force) {
+    const bakPath = backup(path.join(CLAUDE_DIR, 'settings.json'));
+    if (bakPath) {
+      console.log(`  ${style('💾', C.gray)} ${style('Backup: ' + bakPath, C.gray)}\n`);
+    }
   }
 
   if (stat.isDirectory()) {
@@ -523,7 +528,7 @@ async function runRestore(source) {
 
 // --- Status: show current environment ---
 
-function runStatus() {
+function runStatus(opts = {}) {
   renderBanner();
   console.log(`  ${style('Environment Status', C.bold)}\n`);
 
@@ -587,7 +592,7 @@ function runStatus() {
 
 // --- Doctor: diagnose issues ---
 
-function runDoctor() {
+function runDoctor(opts = {}) {
   renderBanner();
   console.log(`  ${style('Checking configuration...', C.bold)}\n`);
 
@@ -705,7 +710,7 @@ function runDoctor() {
 
 // --- Update: check everything for changes ---
 
-async function runUpdate() {
+async function runUpdate(opts = {}) {
   renderBanner();
   console.log(`  ${style('Checking for updates...', C.bold)}\n`);
 
@@ -719,9 +724,9 @@ async function runUpdate() {
   const presetDeny = JSON.stringify(preset.permissions.deny || []);
   const localDeny = JSON.stringify(settings.permissions?.deny || []);
 
-  if (presetAllow !== localAllow || presetDeny !== localDeny) {
+  if (opts.force || presetAllow !== localAllow || presetDeny !== localDeny) {
     console.log(`  ${style('!', C.yellow)} Permissions changed in preset`);
-    const doUpdate = await ask('Update permissions?', true);
+    const doUpdate = opts.yes || await ask('Update permissions?', true);
     if (doUpdate) {
       settings.permissions = preset.permissions;
       writeJson(settingsPath, settings);
@@ -737,7 +742,7 @@ async function runUpdate() {
   const presetPlugins = JSON.stringify(Object.keys(preset.enabledPlugins || {}).sort());
   const localPlugins = JSON.stringify(Object.keys(settings.enabledPlugins || {}).sort());
 
-  if (presetPlugins !== localPlugins) {
+  if (opts.force || presetPlugins !== localPlugins) {
     const presetList = Object.keys(preset.enabledPlugins || {});
     const localList = Object.keys(settings.enabledPlugins || {});
     const added = presetList.filter(p => !localList.includes(p));
@@ -746,7 +751,7 @@ async function runUpdate() {
     if (added.length > 0) console.log(`  ${style('+', C.green)} New plugins: ${added.map(p => p.replace(/@.*$/, '')).join(', ')}`);
     if (removed.length > 0) console.log(`  ${style('-', C.red)} Removed from preset: ${removed.map(p => p.replace(/@.*$/, '')).join(', ')}`);
 
-    const doUpdate = await ask('Update plugins?', true);
+    const doUpdate = opts.yes || await ask('Update plugins?', true);
     if (doUpdate) {
       settings.enabledPlugins = preset.enabledPlugins;
       writeJson(settingsPath, settings);
@@ -767,7 +772,7 @@ async function runUpdate() {
     const destContent = fs.readFileSync(statuslineDest);
     if (!srcContent.equals(destContent)) {
       console.log(`  ${style('!', C.yellow)} Status line changed in repo`);
-      const doUpdate = await ask('Update status line?', true);
+      const doUpdate = opts.yes || await ask('Update status line?', true);
       if (doUpdate) {
         fs.copyFileSync(statuslineSrc, statuslineDest);
         console.log(`  ${style('✓', C.green)} Status line updated\n`);
@@ -821,7 +826,7 @@ async function runUpdate() {
   for (const name of repoSkills) {
     if (!localSkills.has(name)) {
       newSkills.push(name);
-    } else if (isDirChanged(path.join(skillsSrc, name), path.join(skillsDest, name))) {
+    } else if (opts.force || isDirChanged(path.join(skillsSrc, name), path.join(skillsDest, name))) {
       changedSkills.push(name);
     } else {
       upToDate.push(name);
@@ -847,7 +852,7 @@ async function runUpdate() {
 
   // Update changed skills — ask
   if (changedSkills.length > 0) {
-    const doUpdate = await ask(`Update ${changedSkills.length} changed skill(s)?`, true);
+    const doUpdate = opts.yes || await ask(`Update ${changedSkills.length} changed skill(s)?`, true);
     if (doUpdate) {
       for (const name of changedSkills) {
         copySkillWithLang(path.join(skillsSrc, name), path.join(skillsDest, name), lang);
@@ -860,7 +865,7 @@ async function runUpdate() {
 
   // Add new skills — ask
   if (newSkills.length > 0) {
-    const doAdd = await ask(`Install ${newSkills.length} new skill(s)?`, true);
+    const doAdd = opts.yes || await ask(`Install ${newSkills.length} new skill(s)?`, true);
     if (doAdd) {
       for (const name of newSkills) {
         copySkillWithLang(path.join(skillsSrc, name), path.join(skillsDest, name), lang);
@@ -873,7 +878,7 @@ async function runUpdate() {
 
   // Remove local-only skills — ask
   if (removedSkills.length > 0) {
-    const doRemove = await ask(`Remove ${removedSkills.length} local-only skill(s)?`, false);
+    const doRemove = opts.yes || await ask(`Remove ${removedSkills.length} local-only skill(s)?`, false);
     if (doRemove) {
       for (const name of removedSkills) {
         fs.rmSync(path.join(skillsDest, name), { recursive: true });
