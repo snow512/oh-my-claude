@@ -8,147 +8,147 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Agent
 user-invocable: true
 ---
 
-## 보안 점검
+## Security Audit
 
-프로젝트 코드와 Claude 설정 모두를 대상으로 보안 취약점을 점검한다.
-발견된 이슈를 보고하고, 사용자 확인 후 수정까지 수행한다.
+Scan both project code and Claude configuration for security vulnerabilities.
+Report all findings, then fix them after user confirmation.
 
 ---
 
-### 1단계: 코드 시크릿 스캔
+### Step 1: Scan Code for Secrets
 
-프로젝트 소스에서 하드코딩된 비밀번호, API 키, 토큰 등을 탐지한다.
+Detect hardcoded passwords, API keys, and tokens in project source files.
 
 ```bash
-# git 추적 파일 중 소스 코드만 대상
+# Target only source code among git-tracked files
 git ls-files | grep -vE '(node_modules|dist|build|\.git|\.env\.example)'
 ```
 
-**탐지 패턴:**
+**Detection Patterns:**
 
-| 유형 | 패턴 예시 |
-|------|----------|
-| API 키 | `AKIA`, `sk-`, `ghp_`, `gho_`, `glpat-`, `xoxb-`, `xoxp-` |
-| 비밀번호 | `password = "..."`, `passwd`, `secret = "..."`, `pwd=` |
-| 토큰 | `token = "..."`, `Bearer `, `Authorization: Basic` |
-| 프라이빗 키 | `-----BEGIN RSA PRIVATE KEY-----`, `-----BEGIN OPENSSH PRIVATE KEY-----` |
-| DB 연결 | `mongodb://...@`, `postgres://...@`, `mysql://...@` (인라인 비밀번호) |
-| AWS | `aws_access_key_id`, `aws_secret_access_key` 에 값이 직접 할당 |
+| Type | Example Patterns |
+|------|-----------------|
+| API keys | `AKIA`, `sk-`, `ghp_`, `gho_`, `glpat-`, `xoxb-`, `xoxp-` |
+| Passwords | `password = "..."`, `passwd`, `secret = "..."`, `pwd=` |
+| Tokens | `token = "..."`, `Bearer `, `Authorization: Basic` |
+| Private keys | `-----BEGIN RSA PRIVATE KEY-----`, `-----BEGIN OPENSSH PRIVATE KEY-----` |
+| DB connections | `mongodb://...@`, `postgres://...@`, `mysql://...@` (inline passwords) |
+| AWS | `aws_access_key_id`, `aws_secret_access_key` with a direct value assigned |
 
-**제외 대상:**
-- `.env.example` (빈 값 또는 플레이스홀더)
-- 테스트 픽스처의 명시적 더미 값 (`test`, `dummy`, `changeme`, `xxx`)
-- 환경변수 참조 (`process.env.`, `os.environ`)
+**Exclusions:**
+- `.env.example` (empty values or placeholders)
+- Explicit dummy values in test fixtures (`test`, `dummy`, `changeme`, `xxx`)
+- Environment variable references (`process.env.`, `os.environ`)
 
 ---
 
-### 2단계: .env 파일 점검
+### Step 2: Check .env Files
 
 ```bash
 find . -name ".env*" -not -path "*/node_modules/*"
 ```
 
-| 체크 | 이슈 |
-|------|------|
-| `.env`가 `.gitignore`에 있는지 | 없으면 **[critical]** — 시크릿이 git에 커밋될 수 있음 |
-| `.env`가 git에 커밋되었는지 | `git ls-files .env` — 있으면 **[critical]** |
-| `.env.example` 존재 여부 | 없으면 **[warning]** — 팀원이 필요한 변수를 모름 |
-| `.env`에 실제 프로덕션 값이 있는지 | DB 호스트가 localhost가 아닌 실제 서버면 **[warning]** |
+| Check | Issue |
+|-------|-------|
+| `.env` is in `.gitignore` | If missing: **[critical]** — secrets may be committed to git |
+| `.env` is committed to git | `git ls-files .env` — if found: **[critical]** |
+| `.env.example` exists | If missing: **[warning]** — teammates won't know required variables |
+| `.env` contains real production values | If DB host is not localhost: **[warning]** |
 
 ---
 
-### 3단계: Claude 설정 보안 점검
+### Step 3: Audit Claude Configuration Security
 
-`~/.claude/settings.json`과 `.claude/settings.local.json`을 읽고 권한을 분석한다.
+Read `~/.claude/settings.json` and `.claude/settings.local.json` and analyze permissions.
 
-#### 유저 레벨 (`settings.json`)
+#### User Level (`settings.json`)
 
-| 체크 | 이슈 |
-|------|------|
-| `Bash(*)` 가 allow에 있는지 | **[critical]** — 모든 bash 명령 무제한 허용. 유저 레벨에서는 위험 |
-| `Write(*)` 가 allow에 있는지 | **[critical]** — 유저 레벨에서 모든 파일 쓰기 허용은 위험 |
-| deny에 `rm -rf` 계열이 있는지 | 없으면 **[warning]** — 파괴적 명령 미차단 |
-| deny에 `git push --force` 가 있는지 | 없으면 **[warning]** — force push 미차단 |
-| deny에 `git reset --hard` 가 있는지 | 없으면 **[warning]** — 히스토리 파괴 미차단 |
-| deny에 민감파일 읽기가 있는지 | `.env`, `.ssh/id_*`, `.aws/credentials` 등 |
+| Check | Issue |
+|-------|-------|
+| `Bash(*)` is in allow | **[critical]** — unrestricted bash execution; dangerous at user level |
+| `Write(*)` is in allow | **[critical]** — unrestricted file writes at user level is dangerous |
+| `rm -rf` variants are in deny | If missing: **[warning]** — destructive commands not blocked |
+| `git push --force` is in deny | If missing: **[warning]** — force push not blocked |
+| `git reset --hard` is in deny | If missing: **[warning]** — history destruction not blocked |
+| Sensitive file reads are in deny | `.env`, `.ssh/id_*`, `.aws/credentials`, etc. |
 
-#### 프로젝트 레벨 (`settings.local.json`)
+#### Project Level (`settings.local.json`)
 
-| 체크 | 이슈 |
-|------|------|
-| `Bash(*)` 가 allow에 있는지 | **[info]** — 프로젝트 레벨에서는 일반적이지만 인지 필요 |
-| 과도하게 넓은 권한이 있는지 | 필요한 것만 열어뒀는지 체크 |
+| Check | Issue |
+|-------|-------|
+| `Bash(*)` is in allow | **[info]** — common at project level, but worth being aware of |
+| Overly broad permissions exist | Verify only necessary permissions are granted |
 
-#### 누락된 deny 규칙 추천
+#### Recommended Missing Deny Rules
 
-현재 deny 목록과 권장 목록을 비교하여 누락된 규칙을 제안한다:
+Compare the current deny list against the recommended list and suggest any missing rules:
 
 ```
-권장 deny 규칙:
-- Bash(rm -rf:*)           — 재귀 삭제
+Recommended deny rules:
+- Bash(rm -rf:*)           — recursive deletion
 - Bash(git push --force:*) — force push
-- Bash(git push -f:*)      — force push (단축)
+- Bash(git push -f:*)      — force push (short form)
 - Bash(git reset --hard:*) — hard reset
-- Bash(git clean -f:*)     — untracked 파일 삭제
-- Bash(git checkout -- .:*)— 작업 내용 폐기
-- Bash(git branch -D:*)    — 브랜치 강제 삭제
-- Read(./.env)             — 환경변수 직접 읽기
-- Read(./.env.*)           — 환경변수 직접 읽기
-- Read(~/.ssh/id_*)        — SSH 키
-- Read(~/.aws/credentials) — AWS 인증
+- Bash(git clean -f:*)     — delete untracked files
+- Bash(git checkout -- .:*)— discard working changes
+- Bash(git branch -D:*)    — force delete branch
+- Read(./.env)             — direct env var read
+- Read(./.env.*)           — direct env var read
+- Read(~/.ssh/id_*)        — SSH keys
+- Read(~/.aws/credentials) — AWS credentials
 ```
 
 ---
 
-### 4단계: 의존성 보안 점검
+### Step 4: Dependency Security Audit
 
-프로젝트에 맞는 보안 감사를 실행한다.
+Run a security audit appropriate for the project type.
 
-| 프로젝트 유형 | 명령 |
-|---|---|
+| Project Type | Command |
+|-------------|---------|
 | Node.js | `npm audit` |
-| Python | `pip audit` 또는 `safety check` (설치되어 있으면) |
-| Go | `go vuln check` (설치되어 있으면) |
+| Python | `pip audit` or `safety check` (if installed) |
+| Go | `go vuln check` (if installed) |
 
-감사 도구가 없으면 이 단계를 건너뛴다.
+Skip this step if no audit tool is available.
 
 ---
 
-### 5단계: 보고
+### Step 5: Report
 
 ```
-## 보안 점검 결과
+## Security Audit Results
 
-### 🔴 Critical ({N}건)
-- `src/config.ts:15` — AWS access key 하드코딩
-- `.env`가 .gitignore에 없음
-- settings.json에 Bash(*) 가 유저 레벨 allow에 있음
+### Critical ({N} issues)
+- `src/config.ts:15` — AWS access key hardcoded
+- `.env` is not in .gitignore
+- `Bash(*)` is in user-level allow in settings.json
 
-### 🟡 Warning ({N}건)
-- deny에 `git push --force` 누락
-- deny에 민감파일 읽기 차단 없음
-- .env.example 파일 없음
+### Warning ({N} issues)
+- `git push --force` missing from deny
+- No sensitive file read blocks in deny
+- .env.example file missing
 
-### 🔵 Info ({N}건)
+### Info ({N} issues)
 - npm audit: 2 moderate vulnerabilities
-- settings.local.json에 Bash(*) 허용 (프로젝트 레벨)
+- `Bash(*)` allowed in settings.local.json (project level)
 
-### 추천 조치
-1. AWS key를 환경변수로 이동
-2. .gitignore에 .env 추가
-3. deny 규칙 5개 추가 제안
+### Recommended Actions
+1. Move AWS key to environment variable
+2. Add .env to .gitignore
+3. Add 5 suggested deny rules
 ```
 
 ---
 
-### 6단계: 수정
+### Step 6: Fix
 
-각 이슈에 대해 수정 여부를 물어보고 수행한다.
+Ask for confirmation before fixing each issue.
 
-- **시크릿 하드코딩** → 환경변수 참조로 교체 + `.env.example`에 키 이름 추가
-- **`.gitignore` 누락** → `.gitignore`에 `.env` 추가
-- **deny 규칙 누락** → `settings.json`에 deny 규칙 추가
-- **npm audit fix** → `npm audit fix` 실행 (breaking change는 물어봄)
+- **Hardcoded secrets** → replace with environment variable references + add key names to `.env.example`
+- **Missing `.gitignore` entry** → add `.env` to `.gitignore`
+- **Missing deny rules** → add deny rules to `settings.json`
+- **npm audit fix** → run `npm audit fix` (ask before applying breaking changes)
 
 ```
 Fix critical issues? [Y/n]: y
@@ -163,9 +163,9 @@ Fix warnings? [y/N]: y
 
 ---
 
-### 주의사항
+### Notes
 
-- `.env` 파일 내용은 보고서에 값을 노출하지 않음 (키 이름만 표시)
-- git에 이미 커밋된 시크릿은 히스토리에 남아있음을 경고
-- deny 규칙 추가 시 기존 설정을 백업 후 수정
-- false positive 가능 — 테스트 코드의 더미 값을 시크릿으로 오탐할 수 있음
+- Do not expose values from `.env` files in the report — show key names only.
+- Warn that secrets already committed to git remain in history.
+- Back up configuration files before adding deny rules.
+- False positives are possible — dummy values in test code may be flagged as secrets.

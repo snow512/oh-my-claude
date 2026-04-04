@@ -8,113 +8,113 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Agent, Skill
 user-invocable: true
 ---
 
-## 보강 & 개선
+## Enhance & Improve
 
-기존 소스를 적극적으로 수정하여 품질을 높인다.
-3가지 모드로 동작하며, 각각 초점이 다르다.
-
----
-
-### 모드 1: 보강해
-
-기존 코드의 **견고함과 완성도**를 높인다. 기능은 유지하되 더 단단하게 만든다.
-
-#### 점검 관점
-
-| 관점 | 예시 |
-|------|------|
-| **에러 핸들링** | try/catch 누락, 에러 메시지 불친절, 사용자에게 에러 정보 미노출 |
-| **엣지 케이스** | 빈 배열, null, undefined, 빈 문자열, 0, 네트워크 끊김, 타임아웃 |
-| **데이터 검증** | 입력값 미검증, 타입 불일치, 범위 초과, SQL/XSS 미방어 |
-| **로딩/에러 상태** | 로딩 중 UI 없음, 에러 시 빈 화면, 재시도 없음 |
-| **동시성** | race condition, 중복 요청, 낙관적 업데이트 미처리 |
-| **성능** | 번들 사이즈 비대, 미사용 코드/패키지(`depcheck`, `knip`), 이미지 미최적화, N+1 쿼리, dynamic import 미적용으로 느린 초기 로딩 |
-| **테스트 커버리지** | 핵심 로직에 테스트 없음, 엣지 케이스 테스트 누락 |
-
-#### 실행 순서
-
-1. 현재 작업 중인 코드(미푸시/미커밋 변경) 전체 읽기
-2. 위 관점으로 분석하여 취약한 부분 파악
-3. **바로 수정** — 기능 동작은 유지하면서 견고하게
-4. 테스트 실행 — 있으면 돌리고, 핵심 로직에 테스트가 없으면 추가
-5. 빌드 검증
-6. 수정 내역 보고
+Actively modify existing source code to raise quality.
+Operates in 3 modes, each with a different focus.
 
 ---
 
-### 모드 2: 개선해
+### Mode 1: Harden (보강해)
 
-기존 구현의 **사용성과 편의성**을 높인다. 코드 레벨이 아닌 사용자 경험 레벨의 개선.
+Improve the **robustness and completeness** of existing code. Keep the functionality intact — just make it more solid.
 
-#### 점검 관점
+#### Review dimensions
 
-| 관점 | 예시 |
-|------|------|
-| **사용자 흐름** | 불필요한 클릭, 직관적이지 않은 네비게이션, 되돌리기 불가 |
-| **피드백** | 저장 성공/실패 알림 없음, 진행 표시 없음, 비활성 버튼 이유 불명 |
-| **에러 메시지** | 기술적 에러 그대로 노출, 해결 방법 미안내 |
-| **기본값** | 매번 같은 값을 입력해야 함, 최근 사용 기억 안 함 |
-| **단축키/편의** | 자주 쓰는 기능에 단축키 없음, 벌크 작업 불가 |
-| **반응성** | 모바일 미대응, 작은 화면에서 깨짐 |
+| Dimension | Examples |
+|-----------|---------|
+| **Error handling** | Missing try/catch, unhelpful error messages, errors not surfaced to the user |
+| **Edge cases** | Empty arrays, null, undefined, empty strings, 0, network failures, timeouts |
+| **Data validation** | Unvalidated inputs, type mismatches, out-of-range values, no SQL/XSS protection |
+| **Loading/error states** | No loading UI, blank screen on error, no retry mechanism |
+| **Concurrency** | Race conditions, duplicate requests, unhandled optimistic updates |
+| **Performance** | Bloated bundle size, unused code/packages (`depcheck`, `knip`), unoptimized images, N+1 queries, missing dynamic imports causing slow initial load |
+| **Test coverage** | No tests for core logic, missing edge case tests |
 
-#### 실행 순서
+#### Execution order
 
-1. 프로젝트의 주요 기능과 UI 흐름 파악
-2. 개선할 수 있는 부분을 **목록으로 먼저 보고**
-3. 사용자가 선택한 항목만 수행 — 선택하지 않은 건 건드리지 않음
-4. 구현 후 테스트 및 빌드 검증
-5. 수정 내역 보고
-
----
-
-### 모드 3: UI개선해
-
-프론트엔드 **디자인 통일성과 시각적 일관성**을 맞춘다.
-`/clean-ui`가 코드 품질(하드코딩 색상, 접근성 등)에 초점이라면,
-이 모드는 **사용자가 보는 화면의 일관성**에 초점.
-
-#### 점검 관점
-
-| 관점 | 예시 |
-|------|------|
-| **간격 통일** | 페이지마다 padding/margin이 제각각, 카드 사이 간격 불일치 |
-| **폰트 통일** | 페이지마다 다른 폰트 크기/굵기, 제목 스타일 불일치 |
-| **색상 통일** | 같은 역할인데 다른 색상 사용 (버튼 A는 blue, 버튼 B는 #3b82f6) |
-| **컴포넌트 일관성** | 같은 기능인데 다른 컴포넌트 사용 (여기는 Modal, 저기는 Dialog) |
-| **정렬** | 폼 라벨 정렬 불일치, 테이블 헤더와 셀 정렬 불일치 |
-| **상태 표현** | 성공/에러/경고 색상이 페이지마다 다름, 빈 상태 표현 불일치 |
-| **반응형** | 특정 페이지만 모바일 미대응, 브레이크포인트 불일치 |
-
-#### 실행 순서
-
-1. 프론트엔드 소스 감지 + 주요 페이지/컴포넌트 파악
-2. 디자인 토큰(색상, 간격, 폰트 등) 사용 현황 분석
-3. 불일치하는 부분을 **목록으로 먼저 보고**
-4. 사용자가 선택한 항목만 수행
-5. **시각적 변경이므로** 수정 전/후를 명확히 설명
-6. 빌드 검증
-7. 수정 내역 보고
+1. Read all current working code (uncommitted/unpushed changes).
+2. Analyze against the dimensions above and identify weak spots.
+3. **Fix immediately** — keep existing behavior, make it more robust.
+4. Run tests — execute existing ones, and add tests for core logic if none exist.
+5. Verify the build.
+6. Report what was changed.
 
 ---
 
-### /simplify, /clean-code, /clean-ui와의 차이
+### Mode 2: Improve (개선해)
 
-| 스킬 | 성격 | 수정 범위 |
-|------|------|----------|
-| `/simplify` | 리뷰어 | 중복/효율 리뷰 후 수정 |
-| `/clean-code` | 린터 | 스타일, 린팅, 보안 |
-| `/clean-ui` | UI 린터 | 코드 품질 (접근성, 하드코딩 등) |
-| **보강해** | **수선공** | 에러 핸들링, 엣지 케이스, 테스트 추가 |
-| **개선해** | **기획자** | UX 흐름, 편의 기능, 피드백 |
-| **UI개선해** | **디자이너** | 시각적 통일성, 간격/색상/폰트 일관성 |
+Improve the **usability and convenience** of the existing implementation. Focus on user experience, not code-level details.
+
+#### Review dimensions
+
+| Dimension | Examples |
+|-----------|---------|
+| **User flow** | Unnecessary clicks, non-intuitive navigation, no way to undo |
+| **Feedback** | No save success/failure notification, no progress indicator, no explanation for disabled buttons |
+| **Error messages** | Raw technical errors exposed, no guidance on how to fix |
+| **Defaults** | User must type the same value every time, no memory of recent inputs |
+| **Shortcuts / convenience** | No keyboard shortcut for frequently used features, no bulk operations |
+| **Responsiveness** | Not mobile-friendly, layout breaks on small screens |
+
+#### Execution order
+
+1. Understand the project's key features and UI flow.
+2. **Report the list of improvable items first.**
+3. Only act on items the user selects — do not touch anything else.
+4. Verify with tests and build after implementation.
+5. Report what was changed.
 
 ---
 
-### 주의사항
+### Mode 3: Unify UI (UI개선해)
 
-- **사이드이펙트가 발생하지 않는 범위 내에서만 수정한다** — 이것이 모든 모드의 최우선 원칙
-- **보강해**: 기능 동작은 바꾸지 않음 — 더 견고하게만
-- **개선해**: 반드시 목록 보고 후 사용자 선택 — 독단적으로 기능 추가 금지
-- **UI개선해**: 반드시 목록 보고 후 사용자 선택 — 디자인 취향은 사용자 영역
-- 모든 모드에서 수정 후 빌드/테스트 검증 필수
-- 커밋하지 않음 — 수정만 하고 커밋은 사용자가 별도로 요청
+Align frontend **design consistency and visual coherence**.
+While `/clean-ui` focuses on code quality (hardcoded colors, accessibility, etc.),
+this mode focuses on **consistency of what the user actually sees**.
+
+#### Review dimensions
+
+| Dimension | Examples |
+|-----------|---------|
+| **Spacing consistency** | Padding/margin varies page to page, inconsistent card gaps |
+| **Typography consistency** | Different font sizes/weights per page, inconsistent heading styles |
+| **Color consistency** | Same role, different colors (Button A uses `blue`, Button B uses `#3b82f6`) |
+| **Component consistency** | Same function, different components used (Modal in one place, Dialog in another) |
+| **Alignment** | Form label alignment mismatch, table header and cell alignment inconsistency |
+| **State representation** | Success/error/warning colors differ by page, inconsistent empty state visuals |
+| **Responsiveness** | Only certain pages are mobile-unfriendly, inconsistent breakpoints |
+
+#### Execution order
+
+1. Detect the frontend source and identify key pages/components.
+2. Analyze the current usage of design tokens (colors, spacing, fonts, etc.).
+3. **Report the list of inconsistencies first.**
+4. Only act on items the user selects.
+5. **Since these are visual changes**, clearly explain before and after for each fix.
+6. Verify the build.
+7. Report what was changed.
+
+---
+
+### Difference from /simplify, /clean-code, /clean-ui
+
+| Skill | Role | Scope |
+|-------|------|-------|
+| `/simplify` | Reviewer | Reviews duplication/efficiency, then fixes |
+| `/clean-code` | Linter | Style, linting, security |
+| `/clean-ui` | UI linter | Code quality (accessibility, hardcoding, etc.) |
+| **Harden** | **Fixer** | Error handling, edge cases, adding tests |
+| **Improve** | **Product designer** | UX flow, convenience features, feedback |
+| **Unify UI** | **Visual designer** | Visual consistency — spacing, colors, fonts |
+
+---
+
+### Notes
+
+- **Only make changes that do not introduce side effects** — this is the top priority for all modes.
+- **Harden**: Do not change existing behavior — only make it more robust.
+- **Improve**: Always report the list first and let the user choose — never add features unilaterally.
+- **Unify UI**: Always report the list first and let the user choose — design preferences are the user's domain.
+- Build and test verification is mandatory after changes in all modes.
+- Do not commit — only apply changes; let the user commit separately.

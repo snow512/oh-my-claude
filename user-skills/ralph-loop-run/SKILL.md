@@ -7,71 +7,70 @@ description: >
 allowed-tools: Bash, Read, Glob, Grep
 ---
 
-## 랄프루프 실행
+## Ralph Loop Execution
 
-사용자가 "랄프루프해"와 함께 작업 내용을 입력하면, 종료 조건과 반복 횟수를 자동으로 판단하여
-ralph-loop 플러그인의 `/ralph-loop` 커맨드를 실행한다.
-
----
-
-### 1단계: 작업 분석
-
-사용자 입력에서 작업 내용을 추출하고, 아래 기준으로 규모와 종료 조건을 판단한다.
-
-#### 반복 횟수 자동 결정
-
-| 작업 규모 | 판단 기준 | 반복 횟수 |
-|----------|----------|----------|
-| **소규모** | 단일 파일, 간단한 수정, 버그 1건 | 5회 |
-| **중규모** | 여러 파일, 기능 하나, 리팩토링 | 10회 |
-| **대규모** | 전체 코드 리뷰, 대규모 개선, 다수 기능 | 20회 |
-
-사용자가 횟수를 명시하면 그대로 사용 ("5번만 돌려" → 5회).
-
-#### 종료 조건 (completion-promise) 자동 설정
-
-작업 내용에서 완료 기준을 추출한다:
-
-| 작업 유형 | 자동 생성 종료 조건 예시 |
-|----------|----------------------|
-| 코드 리뷰/개선 | "모든 발견 사항이 수정되고 빌드가 성공하면 완료" |
-| 버그 수정 | "해당 버그가 재현되지 않고 테스트가 통과하면 완료" |
-| 테스트 작성 | "커버리지 목표 달성 또는 모든 주요 경로에 테스트가 있으면 완료" |
-| UI 개선 | "지적된 UI 이슈가 모두 수정되고 빌드가 성공하면 완료" |
-| 기능 구현 | "기능이 동작하고 기본 테스트가 통과하면 완료" |
-| 성능 개선 | "목표 성능 지표에 도달하거나 더 이상 개선 여지가 없으면 완료" |
+When the user says "ralph loop" followed by a task description, automatically determine the iteration count and completion condition, then invoke the `/ralph-loop` command from the ralph-loop plugin.
 
 ---
 
-### 2단계: 실행
+### Step 1: Analyze the Task
 
-```
-/ralph-loop "<작업 내용>" --max-iterations <횟수> --completion-promise "<종료 조건>"
-```
+Extract the task from the user's input and determine the scale and completion condition using the criteria below.
+
+#### Auto-determine Iteration Count
+
+| Task Scale | Criteria | Iterations |
+|-----------|----------|-----------|
+| **Small** | Single file, simple edit, one bug | 5 |
+| **Medium** | Multiple files, one feature, refactoring | 10 |
+| **Large** | Full code review, large-scale improvement, multiple features | 20 |
+
+If the user specifies a count explicitly, use it as-is ("just 5 times" → 5).
+
+#### Auto-set Completion Condition (completion-promise)
+
+Extract the done criteria from the task description:
+
+| Task Type | Auto-generated Completion Condition |
+|-----------|-------------------------------------|
+| Code review / improvement | "Done when all findings are fixed and the build passes" |
+| Bug fix | "Done when the bug no longer reproduces and tests pass" |
+| Writing tests | "Done when coverage target is met or all critical paths have tests" |
+| UI improvement | "Done when all identified UI issues are fixed and the build passes" |
+| Feature implementation | "Done when the feature works and basic tests pass" |
+| Performance improvement | "Done when the target metric is reached or no further gains are possible" |
 
 ---
 
-### 예시
+### Step 2: Execute
 
-**입력:** "랄프루프해 디스플레이 컴포넌트 개선해"
 ```
-/ralph-loop "디스플레이 컴포넌트 개선해" --max-iterations 10 --completion-promise "디스플레이 컴포넌트의 코드 품질, 접근성, 성능이 모두 개선되고 빌드가 성공하면 완료"
-```
-
-**입력:** "랄프루프해 전체 코드 리뷰하고 개선해"
-```
-/ralph-loop "전체 코드 리뷰하고 개선해" --max-iterations 20 --completion-promise "모든 발견 사항이 수정되고 빌드/테스트가 통과하면 완료"
-```
-
-**입력:** "랄프루프 5번만 돌려 로그인 버그 잡아"
-```
-/ralph-loop "로그인 버그 잡아" --max-iterations 5 --completion-promise "로그인 관련 버그가 수정되고 재현되지 않으면 완료"
+/ralph-loop "<task description>" --max-iterations <count> --completion-promise "<completion condition>"
 ```
 
 ---
 
-### 주의사항
+### Examples
 
-- 작업 내용이 명확하지 않으면 사용자에게 한 번 확인 후 실행
-- 반복 도중 완료 조건이 달성되면 조기 종료됨 (ralph-loop 플러그인 기능)
-- 반복 중 "랄프 취소해"로 중단 가능 (`/cancel-ralph`)
+**Input:** "ralph loop improve the display component"
+```
+/ralph-loop "improve the display component" --max-iterations 10 --completion-promise "Done when code quality, accessibility, and performance of the display component are all improved and the build passes"
+```
+
+**Input:** "ralph loop review and improve the entire codebase"
+```
+/ralph-loop "review and improve the entire codebase" --max-iterations 20 --completion-promise "Done when all findings are fixed and the build/tests pass"
+```
+
+**Input:** "ralph loop just 5 times, fix the login bug"
+```
+/ralph-loop "fix the login bug" --max-iterations 5 --completion-promise "Done when the login bug is fixed and no longer reproduces"
+```
+
+---
+
+### Notes
+
+- If the task description is unclear, ask the user once for clarification before running.
+- If the completion condition is met mid-run, the loop exits early (ralph-loop plugin behavior).
+- Use "cancel ralph" (`/cancel-ralph`) to stop the loop at any time.

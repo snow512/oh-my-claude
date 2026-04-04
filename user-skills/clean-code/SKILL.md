@@ -7,236 +7,236 @@ description: >
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Agent, Skill
 ---
 
-## 코드정리해
+## Clean Code
 
-미푸시 커밋 또는 언스테이징 변경 파일을 대상으로 클린코드 작업을 수행한다.
-사용자가 "전체"라고 명시하면 프로젝트 전체를 대상으로 한다.
+Run clean-code tasks against unpushed commits or unstaged changed files.
+If the user says "전체" (all), target the entire project.
 
 ---
 
-### 1단계: 프로젝트 감지
+### Step 1: Project Detection
 
-프로젝트 루트에서 아래를 확인하여 기술 스택을 파악한다.
+Check the following from the project root to identify the tech stack.
 
 ```bash
-# 프로젝트 루트
+# Project root
 git rev-parse --show-toplevel
 
-# 패키지 매니저 & 설정 파일 확인
+# Check package manager & config files
 ls package.json tsconfig.json .eslintrc* eslint.config.* pyproject.toml Cargo.toml go.mod 2>/dev/null
 ```
 
-**감지 매트릭스:**
+**Detection matrix:**
 
-| 파일/디렉토리 | 판별 결과 |
-|---------------|----------|
+| File / Directory | Result |
+|-----------------|--------|
 | `tsconfig.json` | TypeScript |
-| `package.json` + `.ts`/`.tsx` 파일 | TypeScript (JS 혼용 가능) |
-| `package.json` + `.js`/`.jsx` 만 | JavaScript |
-| `.eslintrc*` 또는 `eslint.config.*` | ESLint 설정 있음 |
-| `frontend/` + `backend/` | 풀스택 (각각 독립 감지) |
-| `pyproject.toml` 또는 `requirements.txt` | Python |
+| `package.json` + `.ts`/`.tsx` files | TypeScript (may mix JS) |
+| `package.json` + `.js`/`.jsx` only | JavaScript |
+| `.eslintrc*` or `eslint.config.*` | ESLint config present |
+| `frontend/` + `backend/` | Full-stack (detect each independently) |
+| `pyproject.toml` or `requirements.txt` | Python |
 | `Cargo.toml` | Rust |
 | `go.mod` | Go |
 
-풀스택 프로젝트는 frontend/backend 각각에 대해 독립적으로 감지하고 처리한다.
+For full-stack projects, detect and process frontend and backend independently.
 
-**빌드/린트 명령 감지:**
+**Build/lint command detection:**
 
-`package.json`의 `scripts` 섹션에서 실제 사용 가능한 명령을 확인한다.
+Check the `scripts` section of `package.json` for available commands.
 
 ```bash
-# 린트 명령 확인
+# Check lint command
 node -e "const p=require('./package.json'); console.log(Object.keys(p.scripts||{}).filter(s=>s.match(/lint|eslint/)).join(','))"
 
-# 빌드 명령 확인
+# Check build command
 node -e "const p=require('./package.json'); console.log(Object.keys(p.scripts||{}).filter(s=>s.match(/^build$/)).join(','))"
 
-# 테스트 명령 확인
+# Check test command
 node -e "const p=require('./package.json'); console.log(Object.keys(p.scripts||{}).filter(s=>s.match(/^test$/)).join(','))"
 ```
 
 ---
 
-### 2단계: 대상 파일 식별
+### Step 2: Identify Target Files
 
 ```bash
-# 미푸시 커밋의 변경 파일
+# Files changed in unpushed commits
 git diff --name-only @{upstream}..HEAD 2>/dev/null || git diff --name-only origin/$(git rev-parse --abbrev-ref HEAD)..HEAD 2>/dev/null
 
-# 언스테이징/스테이징 변경 파일
+# Unstaged / staged changed files
 git diff --name-only
 git diff --name-only --cached
 
-# 언트래킹 파일
+# Untracked files
 git ls-files --others --exclude-standard
 ```
 
-- 위 결과를 합쳐 **중복 제거** → 대상 파일 목록
-- 제외 대상: `.env`, `*lock*`, `dist/`, `build/`, `node_modules/`, `.next/`, 이미지/폰트 등 바이너리
-- 사용자가 **"전체"**를 명시한 경우: `src/` 하위 전체 (또는 프로젝트 구조에 맞는 소스 디렉토리)
+- Merge all results, **deduplicate** → final target file list
+- Exclude: `.env`, `*lock*`, `dist/`, `build/`, `node_modules/`, `.next/`, images, fonts, and other binaries
+- If the user says **"전체"**: target everything under `src/` (or the appropriate source directory for the project)
 
 ---
 
-### 3단계: 린터 실행
+### Step 3: Run Linter
 
-프로젝트의 린터 설정을 확인하고 실행한다.
+Check for a linter configuration and run it.
 
-**린터 설정이 없는 경우:**
+**If no linter config exists:**
 
-먼저 `.claude/settings.local.json`의 `skills.clean-code.linterDeclined`를 확인한다.
-이전에 거부한 적이 있으면 다시 묻지 않고 린터 단계를 건너뛴다.
+First check `skills.clean-code.linterDeclined` in `.claude/settings.local.json`.
+If the user has previously declined, skip the linter step without asking again.
 
-처음이라면 사용자에게 설치 여부를 물어본다:
-> "이 프로젝트에 린터 설정이 없습니다. 설치할까요? (프로젝트에 맞는 기본 설정으로 세팅합니다)"
+If this is the first time, ask the user:
+> "No linter config found for this project. Would you like to install one? (Sets up a sensible default for the project type)"
 
-사용자가 동의하면:
-- JS/TS: `npm init @eslint/config@latest` 실행
-- Python: `pip install ruff` + `ruff.toml` 생성
-- 설치 후 린터를 실행
+If the user agrees:
+- JS/TS: run `npm init @eslint/config@latest`
+- Python: `pip install ruff` + create `ruff.toml`
+- Run the linter after installation
 
-사용자가 거부하면:
-- `.claude/settings.local.json`에 기록하여 다시 묻지 않음:
+If the user declines:
+- Record in `.claude/settings.local.json` to avoid asking again:
   ```json
   { "skills": { "clean-code": { "linterDeclined": true } } }
   ```
-- 린터 단계를 건너뛴다
+- Skip the linter step
 
-**풀스택 프로젝트 처리:**
-frontend와 backend에 각각 린터가 있으면 독립적으로 실행한다.
+**Full-stack projects:**
+If frontend and backend each have their own linter, run them independently.
 
 ```bash
-# 변경된 TS/JS 파일만 추출
+# Extract changed TS/JS files
 CHANGED_FILES=$(echo "$ALL_FILES" | grep -E '\.(ts|tsx|js|jsx)$')
 
-# 해당 디렉토리에서 ESLint 실행
+# Run ESLint in the appropriate directory
 npx eslint $CHANGED_FILES
 ```
 
-**ESLint 결과 처리:**
-- error가 있으면 → `npx eslint --fix`로 자동 수정 시도 → 재검증
-- 자동 수정 불가한 error가 남으면 → 사용자에게 보고
-- warning만 있으면 → `npx eslint --fix`로 자동 수정
-- 0 errors, 0 warnings → 통과
+**ESLint result handling:**
+- If there are errors → try `npx eslint --fix` → re-validate
+- If unfixable errors remain → report to the user
+- If only warnings → fix with `npx eslint --fix`
+- 0 errors, 0 warnings → pass
 
-**기술별 ESLint 참고사항:**
-- **React/Next.js**: `react-hooks/exhaustive-deps` warning은 의도적인 경우가 많으므로 무시하지 않되 맥락을 파악
-- **NestJS**: 데코레이터가 많아 일부 no-unused-vars 경고가 발생할 수 있음 — DI 패턴을 이해하고 판단
-- **Monorepo**: 루트와 패키지 레벨 ESLint 설정이 다를 수 있음 — 가장 가까운 설정 파일 기준으로 실행
-
----
-
-### 4단계: 코드 분석
-
-대상 파일을 **모두 읽고** 아래 관점으로 분석한다.
-Agent 도구를 활용하여 병렬로 분석하면 효율적이다.
-
-#### 체크 항목
-
-| # | 카테고리 | 체크 내용 |
-|---|----------|----------|
-| 1 | **버그헌팅** | null/undefined 미처리, off-by-one, 비동기 에러 누락, race condition, 메모리 누수 (이벤트 리스너 미해제), 무한 루프 가능성 |
-| 2 | **컨벤션** | 네이밍 일관성, 파일/함수 구조, import 순서, 불필요한 주석, 코딩 스타일 통일 |
-| 3 | **예방적 수정** | 타입 안전성 부족 (`any` 남용), 경계값 미처리, optional chaining 누락, 빈 배열/객체 방어 |
-| 4 | **로그 보강** | catch 블록에 에러 로그 누락, 중요 분기점 디버깅 정보 부재 |
-| 5 | **성능** | 불필요한 리렌더링, N+1 쿼리 패턴, 대량 데이터 미페이지네이션 |
-| 6 | **보안** | XSS 가능성, SQL 인젝션, 민감정보 노출, 인증/인가 누락 |
-
-**기술별 추가 체크:**
-
-- **React/Next.js**: useEffect 의존성 배열, key prop 누락, 불필요한 리렌더링, Server/Client Component 혼동
-- **NestJS**: Guard/Interceptor 누락, DTO validation 미적용, 순환 의존성
-- **Express/Fastify**: 미들웨어 순서, 에러 핸들러 누락, async 핸들러 미래핑
-- **Python**: type hint 누락, bare except, mutable default argument
-- **일반**: 환경변수 하드코딩, 매직 넘버/문자열
+**Framework-specific ESLint notes:**
+- **React/Next.js**: `react-hooks/exhaustive-deps` warnings are often intentional — understand the context before acting
+- **NestJS**: DI patterns can trigger false `no-unused-vars` warnings — understand the pattern before fixing
+- **Monorepo**: Root and package-level ESLint configs may differ — run against the nearest config file
 
 ---
 
-### 5단계: 발견사항 보고
+### Step 4: Code Analysis
+
+**Read all target files** and analyze from the following angles.
+Use the Agent tool for parallel analysis to improve efficiency.
+
+#### Checklist
+
+| # | Category | What to check |
+|---|----------|---------------|
+| 1 | **Bug hunting** | Unhandled null/undefined, off-by-one errors, missing async error handling, race conditions, memory leaks (unremoved event listeners), potential infinite loops |
+| 2 | **Conventions** | Naming consistency, file/function structure, import order, unnecessary comments, coding style uniformity |
+| 3 | **Preventive fixes** | Insufficient type safety (`any` overuse), missing boundary checks, absent optional chaining, missing empty array/object guards |
+| 4 | **Log coverage** | Missing error logs in catch blocks, absent debug info at critical branch points |
+| 5 | **Performance** | Unnecessary re-renders, N+1 query patterns, missing pagination for large datasets |
+| 6 | **Security** | XSS possibilities, SQL injection, exposed sensitive data, missing auth/authz |
+
+**Framework-specific additional checks:**
+
+- **React/Next.js**: useEffect dependency arrays, missing key props, unnecessary re-renders, Server/Client Component confusion
+- **NestJS**: Missing Guards/Interceptors, DTO validation not applied, circular dependencies
+- **Express/Fastify**: Middleware order, missing error handlers, unwrapped async handlers
+- **Python**: Missing type hints, bare except, mutable default arguments
+- **General**: Hardcoded env vars, magic numbers/strings
+
+---
+
+### Step 5: Report Findings
 
 ```
-## 코드 정리 분석 결과
+## Code Analysis Results
 
-프로젝트: {프로젝트 유형} ({감지된 기술 스택})
-대상: {N}개 파일
+Project: {project type} ({detected stack})
+Scope: {N} files
 
-### ESLint ({있으면})
-- errors: {N}개 (자동 수정: {M}개)
-- warnings: {N}개
+### ESLint (if applicable)
+- errors: {N} ({M} auto-fixed)
+- warnings: {N}
 
-### 발견 사항 ({총 건수}건)
+### Findings ({total count})
 
-#### 🐛 버그헌팅 ({N}건)
-- `파일:라인` — 설명 [critical|warning|info]
+#### 🐛 Bug Hunting ({N})
+- `file:line` — description [critical|warning|info]
 
-#### 📐 컨벤션 ({N}건)
+#### 📐 Conventions ({N})
 ...
 
-(발견 건수가 0인 카테고리는 생략)
+(Omit categories with 0 findings)
 ```
 
 ---
 
-### 6단계: 수정 수행
+### Step 6: Apply Fixes
 
-- 보고 후 **사용자 확인 없이** 바로 수정 진행
-- 단, `[critical]` 이슈가 있으면 먼저 사용자에게 알리고 수정 방향을 확인
-- 수정 시 **기능 변경 없이** 코드 품질만 개선 (동작이 바뀌면 안 됨)
-
----
-
-### 7단계: /simplify로 중복 코드 제거
-
-수정이 끝난 후 `/simplify` 스킬을 호출하여 추가 정리를 수행한다.
-이 단계에서 3개 리뷰 에이전트(코드 재사용, 코드 품질, 효율성)가 병렬로 분석하고 발견된 이슈를 수정한다.
-
-`/simplify`가 발견하는 것들:
-- 중복 로직 → 공통 유틸로 추출
-- 불필요한 래퍼/추상화 제거
-- copy-paste 코드 통합
-- 비효율적 패턴 개선
+- Proceed with fixes immediately after the report — no user confirmation needed
+- However, if there are `[critical]` issues, notify the user and confirm the fix approach first
+- **Do not change behavior** — only improve code quality (functionality must remain identical)
 
 ---
 
-### 8단계: 빌드 & 테스트 검증
+### Step 7: Deduplicate with /simplify
 
-감지된 프로젝트에 맞는 명령을 실행한다.
+After fixes are applied, invoke the `/simplify` skill for additional cleanup.
+Three review agents (code reuse, code quality, efficiency) run in parallel and fix any issues found.
+
+What `/simplify` finds:
+- Duplicate logic → extract into shared utilities
+- Remove unnecessary wrappers/abstractions
+- Merge copy-paste code
+- Improve inefficient patterns
+
+---
+
+### Step 8: Build & Test Verification
+
+Run the commands appropriate for the detected project.
 
 ```bash
-# 빌드 (감지된 명령 사용)
-npm run build    # 또는 감지된 빌드 스크립트
+# Build (use detected command)
+npm run build    # or detected build script
 
-# 테스트 (있으면)
-npm test         # 또는 감지된 테스트 스크립트
+# Test (if available)
+npm test         # or detected test script
 ```
 
-빌드/테스트 실패 시 → 수정 내용을 되돌리고 원인 보고.
+If build or tests fail → revert the changes and report the cause.
 
 ---
 
-### 9단계: 수정 요약
+### Step 9: Fix Summary
 
 ```
-## 코드 정리 완료
+## Code Cleanup Complete
 
-프로젝트: {프로젝트 유형}
-수정: {N}건 / 스킵: {M}건
-ESLint: ✅ {수정}건 자동 수정
-/simplify: ✅ {N}건 개선
-빌드: ✅ 성공
-테스트: ✅ {통과}/{전체} 통과
+Project: {project type}
+Fixed: {N} / Skipped: {M}
+ESLint: ✅ {N} auto-fixed
+/simplify: ✅ {N} improved
+Build: ✅ passed
+Tests: ✅ {passed}/{total} passed
 
-### 수정 내역
-- `파일` — 변경 내용 요약
+### Changes
+- `file` — summary of changes
 ```
 
 ---
 
-### 주의사항
+### Notes
 
-- **기능 변경 금지** — 동작이 달라지는 수정은 하지 않음
-- **과도한 리팩토링 금지** — 파일 구조 변경, 대규모 추상화 도입 등은 하지 않음
-- **커밋하지 않음** — 수정만 하고 커밋은 사용자가 별도로 요청
-- **빌드/테스트 실패 시 롤백** — 수정으로 인해 깨진 것이 있으면 되돌림
-- 프로젝트에 ESLint가 없으면 ESLint 단계를 건너뜀 (설치를 강요하지 않음)
-- `/simplify`에서 발견한 이슈 중 false positive는 스킵
+- **No behavior changes** — never make a fix that alters how the code behaves
+- **No heavy refactoring** — do not restructure files or introduce large abstractions
+- **Do not commit** — only apply fixes; let the user commit separately
+- **Roll back on build/test failure** — if changes break anything, revert them
+- Skip the ESLint step if no ESLint config exists (do not force installation)
+- Skip false positives from `/simplify`

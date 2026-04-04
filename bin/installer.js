@@ -147,9 +147,29 @@ async function configurePlugins(preset, useDefaults) {
   return selected;
 }
 
+// --- Copy skill with language support ---
+
+function copySkillWithLang(srcDir, destDir, lang) {
+  // Copy entire skill directory first
+  copyDirRecursive(srcDir, destDir);
+
+  // If lang is 'ko', overwrite SKILL.md with SKILL.ko.md
+  if (lang === 'ko') {
+    const koFile = path.join(srcDir, 'SKILL.ko.md');
+    const destFile = path.join(destDir, 'SKILL.md');
+    if (fs.existsSync(koFile)) {
+      fs.copyFileSync(koFile, destFile);
+    }
+  }
+
+  // Remove SKILL.ko.md from destination (user doesn't need both)
+  const destKo = path.join(destDir, 'SKILL.ko.md');
+  try { fs.unlinkSync(destKo); } catch {}
+}
+
 // --- Step 4: User Skills ---
 
-async function installSkills(useDefaults) {
+async function installSkills(useDefaults, lang) {
   const skillsSrc = path.join(PACKAGE_ROOT, 'user-skills');
   const skillsDest = path.join(CLAUDE_DIR, 'skills');
   const available = getAvailableSkills();
@@ -162,18 +182,18 @@ async function installSkills(useDefaults) {
 
   if (useDefaults) {
     selectedNames = available.map(s => s.name);
-    await progressLine(`Installing all ${available.length} skills`, () => {
+    await progressLine(`Installing all ${available.length} skills (${lang})`, () => {
       for (const name of selectedNames) {
-        copyDirRecursive(path.join(skillsSrc, name), path.join(skillsDest, name));
+        copySkillWithLang(path.join(skillsSrc, name), path.join(skillsDest, name), lang);
       }
     });
   } else {
     console.log('');
     selectedNames = await checkbox(available);
     for (const name of selectedNames) {
-      copyDirRecursive(path.join(skillsSrc, name), path.join(skillsDest, name));
+      copySkillWithLang(path.join(skillsSrc, name), path.join(skillsDest, name), lang);
     }
-    console.log(`  ${style('✓', C.green)} ${selectedNames.length} skills installed`);
+    console.log(`  ${style('✓', C.green)} ${selectedNames.length} skills installed (${lang})`);
   }
 
   return {
@@ -230,6 +250,20 @@ async function runInit() {
   renderBanner();
 
   const useDefaults = await ask('Use defaults? (install everything)', true);
+
+  // Language selection for skills
+  let lang = 'en';
+  if (!useDefaults) {
+    const rl = require('readline').createInterface({ input: process.stdin, output: process.stdout });
+    lang = await new Promise((resolve) => {
+      rl.question(`  Skill language? ${style('[en]', C.gray)}/ko: `, (answer) => {
+        rl.close();
+        const a = answer.trim().toLowerCase();
+        resolve(a === 'ko' ? 'ko' : 'en');
+      });
+    });
+  }
+
   const totalSteps = 6;
 
   const settingsPath = path.join(CLAUDE_DIR, 'settings.json');
@@ -268,7 +302,7 @@ async function runInit() {
 
   // Step 4: Skills
   renderStep(4, totalSteps, 'User Skills');
-  const skillsResult = await installSkills(useDefaults);
+  const skillsResult = await installSkills(useDefaults, lang);
 
   // Step 5: Status Line
   renderStep(5, totalSteps, 'Status Line');
@@ -668,10 +702,21 @@ function runDoctor() {
 
 async function runUpdate() {
   renderBanner();
-  console.log(`  ${style('Updating skills from repo...', C.bold)}\n`);
+
+  // Detect current language from existing skill (check if SKILL.md contains Korean)
+  let lang = 'en';
+  const skillsDest = path.join(CLAUDE_DIR, 'skills');
+  try {
+    const firstSkill = fs.readdirSync(skillsDest, { withFileTypes: true }).find(e => e.isDirectory());
+    if (firstSkill) {
+      const content = fs.readFileSync(path.join(skillsDest, firstSkill.name, 'SKILL.md'), 'utf-8');
+      if (/[\uAC00-\uD7AF]/.test(content.split('---')[2] || '')) lang = 'ko';
+    }
+  } catch {}
+
+  console.log(`  ${style(`Updating skills from repo (${lang})...`, C.bold)}\n`);
 
   const skillsSrc = path.join(PACKAGE_ROOT, 'user-skills');
-  const skillsDest = path.join(CLAUDE_DIR, 'skills');
 
   // Get repo skills
   const repoSkills = new Set();
@@ -703,7 +748,7 @@ async function runUpdate() {
 
     if (!localSkills.has(name)) {
       await progressLine(`Adding ${name} (new)`, () => {
-        copyDirRecursive(srcDir, destDir);
+        copySkillWithLang(srcDir, destDir, lang);
       });
       added++;
       continue;
@@ -713,7 +758,7 @@ async function runUpdate() {
     const changed = isDirChanged(srcDir, destDir);
     if (changed) {
       await progressLine(`Updating ${name}`, () => {
-        copyDirRecursive(srcDir, destDir);
+        copySkillWithLang(srcDir, destDir, lang);
       });
       updated++;
     } else {

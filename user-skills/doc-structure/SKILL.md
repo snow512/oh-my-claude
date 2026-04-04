@@ -8,72 +8,72 @@ description: >
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep
 ---
 
-## 문서화 & 문서 최신화
+## Documentation & Doc Update
 
-두 가지 모드로 동작한다.
-
----
-
-### 모드 1: 문서화해
-
-소스를 분석하여 `docs/` 폴더에 문서를 생성한다.
-
-1. **프로젝트 분석**: 디렉토리 구조, 설정 파일, 소스 코드를 읽고 프로젝트 유형 파악
-2. **기존 문서 확인**: `docs/`가 있으면 읽고, 없으면 생성
-3. **문서 생성**: 프로젝트에 실제로 해당하는 문서만 생성한다
-
-**문서 종류 (해당하는 것만 생성):**
-
-| 문서 | 생성 조건 | 내용 |
-|------|----------|------|
-| `architecture.md` | 항상 | 프로젝트 구조, 기술 스택, 주요 모듈, 데이터 흐름 |
-| `setup.md` | 항상 | 설치, 환경변수, 실행 방법, 의존성 |
-| `api.md` | REST/GraphQL API가 있을 때 | 엔드포인트, 요청/응답, 인증 |
-| `database.md` | DB/ORM이 있을 때 | 스키마, 테이블 관계(ER), 마이그레이션, 시드 |
-| `deployment.md` | Docker/CI-CD가 있을 때 | 배포 방법, 환경별 설정, 스크립트 |
-| `components.md` | 프론트엔드가 있을 때 | 주요 컴포넌트, 페이지 구조, 상태 관리 |
-
-4. **결과 보고**: 생성/수정된 문서 목록 출력
+Operates in two modes.
 
 ---
 
-### 모드 2: 문서정리해 / 문서업데이트 / 문서최신화
+### Mode 1: Document (문서화해)
 
-변경된 코드를 기반으로 기존 문서를 갱신한다.
+Analyze the source and generate documentation under the `docs/` folder.
 
-1. **변경사항 파악**:
+1. **Analyze the project**: Read the directory structure, config files, and source code to determine the project type.
+2. **Check existing docs**: Read `docs/` if it exists; create it if it doesn't.
+3. **Generate docs**: Only create documents that are actually relevant to the project.
+
+**Document types (generate only where applicable):**
+
+| Document | When to generate | Contents |
+|----------|-----------------|----------|
+| `architecture.md` | Always | Project structure, tech stack, key modules, data flow |
+| `setup.md` | Always | Installation, env vars, how to run, dependencies |
+| `api.md` | When REST/GraphQL API exists | Endpoints, request/response, authentication |
+| `database.md` | When DB/ORM exists | Schema, table relationships (ER), migrations, seeds |
+| `deployment.md` | When Docker/CI-CD exists | Deployment methods, per-environment config, scripts |
+| `components.md` | When frontend exists | Key components, page structure, state management |
+
+4. **Report results**: Print the list of created/updated documents.
+
+---
+
+### Mode 2: Update Docs (문서정리해 / 문서업데이트 / 문서최신화)
+
+Update existing documentation based on code changes.
+
+1. **Identify changes**:
    ```bash
    git diff --name-only HEAD
    git diff --name-only --cached
    ```
-2. **기존 문서 읽기**: `docs/` 하위 문서들을 읽음
-3. **영향 분석**: 변경 파일 → 문서 매핑
+2. **Read existing docs**: Read documents under `docs/`.
+3. **Analyze impact**: Map changed files to their corresponding documents.
 
-| 변경 유형 | 갱신 대상 |
-|----------|----------|
-| API 라우트/컨트롤러 | `api.md` |
-| DB 스키마/마이그레이션/엔티티 | `database.md` |
+| Change type | Document to update |
+|------------|-------------------|
+| API routes / controllers | `api.md` |
+| DB schema / migrations / entities | `database.md` |
 | package.json / docker / CI | `setup.md`, `deployment.md` |
-| 컴포넌트/페이지 추가·삭제 | `components.md` |
-| 디렉토리 구조 변경 | `architecture.md` |
-| 영향 없음 | "문서 갱신 불필요" 출력 후 종료 |
+| Component / page additions or deletions | `components.md` |
+| Directory structure changes | `architecture.md` |
+| No impact | Print "No doc update needed" and exit |
 
-4. **문서 수정**: 해당 부분만 최소한으로 수정
-5. **결과 보고**: 수정된 문서와 변경 내용 요약
-
----
-
-### commit-push 연동
-
-`/commit-push` 스킬에서 커밋 직전에 자동 호출된다 (모드 2).
-수정된 문서 파일은 커밋에 함께 포함된다.
-`docs/` 폴더가 없는 프로젝트에서는 건너뛴다.
+4. **Update docs**: Make minimal edits to only the affected sections.
+5. **Report results**: Summarize which documents were modified and what changed.
 
 ---
 
-### 주의사항
+### Integration with commit-push
 
-- 기존 문서의 스타일과 언어를 유지한다
-- 문서가 없는 프로젝트에서 "문서정리해" → "먼저 '문서화해'를 실행하세요"로 안내
-- README.md는 건드리지 않는다 (사용자 영역)
-- 빈 문서 만들지 않음 — 내용이 없으면 해당 문서 생략
+Called automatically by the `/commit-push` skill just before committing (Mode 2).
+Any modified doc files are included in the same commit.
+Skipped for projects that have no `docs/` folder.
+
+---
+
+### Notes
+
+- Preserve the existing documents' style and language.
+- If "update docs" is triggered in a project with no existing docs, prompt: "Run 'document' first."
+- Do not touch `README.md` — that is the user's domain.
+- Do not create empty documents — omit a document if there is nothing to write.

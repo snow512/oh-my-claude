@@ -7,75 +7,75 @@ description: >
 allowed-tools: Bash, Read, Glob, Grep, AskUserQuestion
 ---
 
-## 서버 재기동 / 중지
+## Restart / Stop Dev Server
 
-현재 프로젝트의 개발 서버를 재기동하거나 중지한다.
-프로젝트 유형을 자동 감지하여 적절한 방식으로 처리한다.
+Restart or stop the development server for the current project.
+Auto-detects the project type and handles it accordingly.
 
-- "서버재기동해" → 중지 + 시작
-- "서버내려" / "서버 중지해" → 중지만
+- "restart server" → stop + start
+- "stop server" → stop only
 
-### 번들 스크립트
+### Bundled Scripts
 
-- `scripts/detect-project.sh` — 프로젝트 유형, 포트, 디렉토리 구조 감지
-- `scripts/stop-by-port.sh` — 지정 포트의 프로세스를 graceful → force kill
-- `scripts/check-ports.sh` — 포트 LISTEN 상태 확인
+- `scripts/detect-project.sh` — detects project type, ports, and directory structure
+- `scripts/stop-by-port.sh` — gracefully stops then force-kills processes on specified ports
+- `scripts/check-ports.sh` — checks which ports are in LISTEN state
 
 ---
 
-### 1단계: 프로젝트 감지
+### Step 1: Detect Project
 
 ```bash
 ${CLAUDE_SKILL_ROOT}/scripts/detect-project.sh
 ```
 
-이 스크립트가 프로젝트 유형(Docker, 풀스택, 단일, Python, Go 등), 포트, 디렉토리를 출력한다.
+This script outputs the project type (Docker, full-stack, single, Python, Go, etc.), ports, and directories.
 
 ---
 
-### 2단계: 기존 프로세스 중지
+### Step 2: Stop Existing Processes
 
-우선순위 순서로 시도:
+Try in priority order:
 
-1. **`stop.sh` 존재** → `./stop.sh` 실행
-2. **Docker** → `docker compose down` 또는 `docker compose stop`
-3. **포트 기반**:
+1. **`stop.sh` exists** → run `./stop.sh`
+2. **Docker** → run `docker compose down` or `docker compose stop`
+3. **Port-based**:
    ```bash
    ${CLAUDE_SKILL_ROOT}/scripts/stop-by-port.sh <port1> <port2> ...
    ```
 
-"서버내려" 모드면 여기서 종료.
+If in "stop server" mode, finish here.
 
 ---
 
-### 3단계: 서버 시작
+### Step 3: Start Server
 
-프로젝트 유형에 따라 분기한다.
+Branch based on project type.
 
-#### A. 스크립트 기반 (`server.sh` / `client.sh` 존재)
+#### A. Script-based (`server.sh` / `client.sh` exist)
 
 ```bash
-./server.sh &   # 백그라운드
+./server.sh &   # background
 sleep 5
-./client.sh &   # 백그라운드
+./client.sh &   # background
 ```
 
-#### B. Node.js (package.json 기반)
+#### B. Node.js (package.json-based)
 
-| 프로젝트 유형 | 실행 명령 |
-|--------------|----------|
-| 풀스택 (루트 dev가 concurrently) | `npm run dev` |
-| 풀스택 (분리형) | 백엔드: `npm run start:dev` 또는 `npm run dev`, 프론트엔드: `npm run dev` |
-| 프론트엔드 전용 | `npm run dev` |
-| 백엔드 전용 | `npm run start:dev` 또는 `npm run dev` |
-| 단일 서버 | `npm start` 또는 `node server.js` |
+| Project Type | Command |
+|-------------|---------|
+| Full-stack (root dev uses concurrently) | `npm run dev` |
+| Full-stack (split) | Backend: `npm run start:dev` or `npm run dev`, Frontend: `npm run dev` |
+| Frontend only | `npm run dev` |
+| Backend only | `npm run start:dev` or `npm run dev` |
+| Single server | `npm start` or `node server.js` |
 
 #### C. Python
 
-| 프레임워크 | 실행 명령 |
-|-----------|----------|
+| Framework | Command |
+|-----------|---------|
 | Django | `python manage.py runserver` |
-| Flask | `flask run` 또는 `python app.py` |
+| Flask | `flask run` or `python app.py` |
 | FastAPI | `uvicorn main:app --reload` |
 
 #### D. Go
@@ -90,11 +90,11 @@ go run .
 docker compose up -d
 ```
 
-Docker + 로컬 서버 조합인 경우 Docker(DB 등) 먼저 올린 후 서버 시작.
+For Docker + local server combinations, bring up Docker (DB, etc.) first, then start the server.
 
 ---
 
-### 4단계: 구동 확인
+### Step 4: Verify Startup
 
 ```bash
 ${CLAUDE_SKILL_ROOT}/scripts/check-ports.sh <port1> <port2> ...
@@ -108,21 +108,21 @@ Server restart complete!
 
 ---
 
-### 5단계: 스크립트 미존재 시 생성 제안
+### Step 5: Offer to Create Missing Scripts
 
-풀스택 프로젝트인데 `server.sh`, `client.sh`, `stop.sh`가 없으면:
+If this is a full-stack project but `server.sh`, `client.sh`, or `stop.sh` are missing:
 
-> "이 프로젝트에 서버 관리 스크립트가 없습니다. 다음 재기동을 위해 자동 생성할까요?"
+> "This project has no server management scripts. Generate them automatically for next time?"
 
-동의하면 프로젝트 구조에 맞는 스크립트를 생성한다:
-- 감지된 포트 번호, 디렉토리 경로, Docker 사용 여부 반영
-- PID 파일 관리 포함
-- `chmod +x` 실행 권한 부여
+If the user agrees, generate scripts tailored to the project structure:
+- Reflect detected port numbers, directory paths, and Docker usage
+- Include PID file management
+- Apply `chmod +x` to make them executable
 
 ---
 
-### 주의사항
+### Notes
 
-- Docker(DB 등)가 필요한 프로젝트는 Docker를 먼저 실행
-- 포트 충돌 시 graceful kill → force kill 순서
-- CLI 전용 프로젝트(`bin/` 구조)는 서버가 없으므로 안내 메시지만 출력
+- For projects that require Docker (DB, etc.), start Docker first.
+- On port conflicts: graceful kill first, then force kill.
+- CLI-only projects (`bin/` structure) have no server — print an informational message only.

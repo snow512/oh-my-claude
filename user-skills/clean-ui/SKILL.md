@@ -7,24 +7,24 @@ description: >
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Agent
 ---
 
-## UI 정리
+## Clean UI
 
-프론트엔드 소스 중 변경된 UI 파일을 대상으로 UI 코드 품질을 점검하고 수정한다.
-"전체"라고 명시하면 프론트엔드 소스 전체를 대상으로 한다.
+Inspect and fix UI code quality in changed frontend files.
+If the user says "전체" (all), target the entire frontend source.
 
 ---
 
-### 1단계: 프론트엔드 소스 감지
+### Step 1: Detect Frontend Source
 
 ```bash
 ls -d frontend/src client/src src/app src/pages src/components 2>/dev/null
 ```
 
-프론트엔드가 없는 프로젝트 → "프론트엔드 소스를 찾을 수 없습니다" 출력 후 종료.
+If no frontend source is found → print "No frontend source found." and exit.
 
 ---
 
-### 2단계: 대상 파일 식별
+### Step 2: Identify Target Files
 
 ```bash
 git diff --name-only @{upstream}..HEAD 2>/dev/null
@@ -33,133 +33,133 @@ git diff --name-only --cached
 git ls-files --others --exclude-standard
 ```
 
-- 감지된 프론트엔드 디렉토리 하위 `.tsx`, `.jsx`, `.ts`, `.css`, `.scss` 파일만 필터
-- `dist/`, `node_modules/`, `.test.`, `.spec.`, `__tests__/`, `__stories__/` 제외
+- Filter to `.tsx`, `.jsx`, `.ts`, `.css`, `.scss` files under the detected frontend directory
+- Exclude: `dist/`, `node_modules/`, `.test.`, `.spec.`, `__tests__/`, `__stories__/`
 
 ---
 
-### 3단계: UI 특화 분석
+### Step 3: UI-Specific Analysis
 
-대상 파일을 읽고 아래 관점으로 분석한다. Agent를 활용하여 병렬 분석하면 효율적.
+Read all target files and analyze from the angles below. Use Agent for parallel analysis.
 
-#### A. 컴포넌트 구조 & 패턴
+#### A. Component Structure & Patterns
 
-| # | 체크 | 이유 |
-|---|------|------|
-| 1 | **단일 책임** | 하나의 컴포넌트가 데이터 fetch + 상태 관리 + UI 렌더링을 모두 하면 분리 필요. Container/Presentational 또는 커스텀 훅으로 분리 |
-| 2 | **컴포넌트 크기** | 200줄 초과 → 서브 컴포넌트로 분해 제안 |
-| 3 | **Raw HTML** | 네이티브 `<button>`, `<input>`, `<select>` 직접 사용 → 프로젝트 공통 컴포넌트가 있으면 그걸 사용. 래퍼 내부는 제외 |
-| 4 | **인라인 서브컴포넌트** | 렌더 함수 안에서 컴포넌트 정의 → 매 렌더마다 재생성되어 성능 저하. 파일 레벨로 추출 |
-| 5 | **재사용성** | 동일/유사 JSX 블록 2곳 이상 반복 → 공통 컴포넌트 추출. 1회만 사용하는 패턴은 제외 |
-| 6 | **Props 설계** | boolean prop 남용 (`isLarge`, `isPrimary` 등 3개 이상) → variant/size enum으로 통합 |
+| # | Check | Why |
+|---|-------|-----|
+| 1 | **Single responsibility** | If one component handles data fetching, state management, and UI rendering all at once, split it. Use Container/Presentational pattern or custom hooks |
+| 2 | **Component size** | Over 200 lines → suggest decomposing into sub-components |
+| 3 | **Raw HTML** | Direct use of `<button>`, `<input>`, `<select>` → use the project's shared components if they exist. Exempt wrapper internals |
+| 4 | **Inline sub-components** | Components defined inside render functions → recreated on every render, causing performance issues. Extract to file level |
+| 5 | **Reusability** | Same or similar JSX block repeated in 2+ places → extract as a shared component. Exempt single-use patterns |
+| 6 | **Props design** | Overuse of boolean props (`isLarge`, `isPrimary`, etc. — 3 or more) → consolidate into a variant/size enum |
 
-#### B. CSS & 스타일링
+#### B. CSS & Styling
 
-| # | 체크 | 이유 |
-|---|------|------|
-| 7 | **하드코딩 색상** | hex/rgb/rgba/hsl 직접 사용 → CSS 변수(`var(--color-*)`) 또는 테마 토큰. 색상은 의미(semantic)로 명명 (red가 아닌 error, primary) |
-| 8 | **매직 넘버** | `padding: 24px`, `gap: 12px` 등 숫자 직접 사용 → 디자인 토큰 또는 spacing 변수. 일관된 4px/8px 그리드 유지 |
-| 9 | **인라인 스타일** | `style={{}}` 중 CSS 클래스로 대체 가능한 것 → 클래스로 이동. 동적 값(계산된 width 등)만 인라인 허용 |
-| 10 | **CSS 선택자 깊이** | 3단계 이상 중첩 (`.a .b .c .d`) → 선택자 평탄화. 깊은 중첩은 유지보수와 성능 모두 저하 |
-| 11 | **미사용 스타일** | 정의되었으나 참조되지 않는 CSS 클래스 → 제거. dead CSS는 번들 크기만 늘림 |
-| 12 | **클래스 네이밍** | 색상/크기로 네이밍(`.red-box`) → 목적으로 네이밍(`.error-container`). 외형은 바뀌지만 목적은 안정적 |
+| # | Check | Why |
+|---|-------|-----|
+| 7 | **Hardcoded colors** | Direct use of hex/rgb/rgba/hsl → use CSS variables (`var(--color-*)`) or theme tokens. Name by semantic meaning (error, primary — not red) |
+| 8 | **Magic numbers** | Literal values like `padding: 24px`, `gap: 12px` → use design tokens or spacing variables. Maintain a consistent 4px/8px grid |
+| 9 | **Inline styles** | `style={{}}` that could be CSS classes → move to classes. Only allow inline styles for truly dynamic values (e.g. computed widths) |
+| 10 | **CSS selector depth** | Nesting 3+ levels deep (`.a .b .c .d`) → flatten selectors. Deep nesting hurts both maintainability and performance |
+| 11 | **Unused styles** | CSS classes defined but never referenced → remove. Dead CSS only bloats the bundle |
+| 12 | **Class naming** | Names based on appearance (`.red-box`) → name by purpose (`.error-container`). Visual appearance changes; purpose stays stable |
 
-#### C. 접근성 (a11y)
+#### C. Accessibility (a11y)
 
-| # | 체크 | 이유 |
-|---|------|------|
-| 13 | **색상 대비** | 텍스트/배경 대비 4.5:1 미만 → WCAG AA 기준 미달. 큰 텍스트는 3:1 |
-| 14 | **alt 텍스트** | `<img>` 태그에 alt 누락 → 스크린리더 사용자에게 정보 전달 불가 |
-| 15 | **시맨틱 HTML** | `<div onClick>` → `<button>`. 클릭 가능한 요소는 네이티브 인터랙티브 요소 사용. 키보드 탐색 보장 |
-| 16 | **폼 라벨** | `<input>` 에 연결된 `<label>` 또는 `aria-label` 누락 → 보조 기술에서 입력 필드 목적 식별 불가 |
-| 17 | **포커스 관리** | 모달/드롭다운에서 포커스 트랩 미구현, `outline: none`만 있고 대체 포커스 표시 없음 |
+| # | Check | Why |
+|---|-------|-----|
+| 13 | **Color contrast** | Text/background contrast below 4.5:1 → fails WCAG AA. Large text requires 3:1 |
+| 14 | **Alt text** | `<img>` tags without alt → screen reader users receive no information |
+| 15 | **Semantic HTML** | `<div onClick>` → `<button>`. Use native interactive elements for clickable targets. Ensures keyboard navigation |
+| 16 | **Form labels** | `<input>` missing a linked `<label>` or `aria-label` → assistive technology cannot identify the field's purpose |
+| 17 | **Focus management** | Missing focus trap in modals/dropdowns; `outline: none` with no alternative focus indicator |
 
-#### D. 성능
+#### D. Performance
 
-| # | 체크 | 이유 |
-|---|------|------|
-| 18 | **인라인 함수/객체 prop** | `onClick={() => ...}` 또는 `style={{ ... }}` 가 자식 컴포넌트 prop으로 전달 → 매 렌더마다 새 참조 생성하여 불필요한 리렌더링 유발 (React 19 compiler가 처리하지만, 명시적이면 더 명확) |
-| 19 | **리스트 key** | `key={index}` → 안정적인 고유 ID 사용. index key는 항목 순서 변경 시 잘못된 리렌더링 유발 |
-| 20 | **이미지 최적화** | `<img>` 에 width/height 미지정 → CLS(Cumulative Layout Shift) 유발. next/image 또는 명시적 크기 지정 |
-| 21 | **조건부 렌더링** | 무거운 컴포넌트를 `&&` 로 조건부 렌더링 시 매번 마운트/언마운트 → 빈번하게 토글되면 `display: none` 또는 lazy loading 고려 |
+| # | Check | Why |
+|---|-------|-----|
+| 18 | **Inline function/object props** | `onClick={() => ...}` or `style={{ ... }}` passed as child props → creates a new reference on every render, causing unnecessary re-renders (React 19 compiler helps, but being explicit is clearer) |
+| 19 | **List key** | `key={index}` → use a stable unique ID. Index keys cause incorrect re-renders when item order changes |
+| 20 | **Image optimization** | `<img>` without width/height → causes CLS (Cumulative Layout Shift). Use next/image or specify explicit dimensions |
+| 21 | **Conditional rendering** | Heavy components conditionally rendered with `&&` → mounted/unmounted every time. Consider `display: none` or lazy loading if toggled frequently |
 
 ---
 
-### 프레임워크별 추가 체크
+### Framework-Specific Checks
 
 **React (19+):**
-- useEffect는 마지막 수단 — 데이터 fetching은 서버 컴포넌트 또는 라이브러리 사용
-- use() 훅으로 Promise/Context 직접 소비 가능 — 불필요한 useEffect + useState 패턴 제거
-- Server/Client Component 경계 확인 — `'use client'` 없이 브라우저 API 사용하면 에러
+- useEffect is a last resort — use server components or libraries for data fetching
+- Use the `use()` hook to consume Promises/Context directly — remove unnecessary useEffect + useState patterns
+- Check Server/Client Component boundaries — using browser APIs without `'use client'` causes errors
 
 **Vue:**
-- v-for에 key 누락
-- computed 미사용으로 불필요한 재계산
+- Missing key on v-for
+- Unnecessary recomputation due to not using computed properties
 
-**Tailwind 프로젝트:**
-- 커스텀 CSS 대신 유틸리티 클래스 사용 가능한 곳
-- `@apply` 남용 → 컴포넌트 추출이 더 나은 경우
+**Tailwind projects:**
+- Use utility classes where possible instead of custom CSS
+- Excessive `@apply` → component extraction may be a better solution
 
-**CSS Modules/Styled Components:**
-- 미사용 스타일 정의
-- 동적 스타일이 많으면 CSS-in-JS 대신 CSS 변수 + 데이터 속성 고려
+**CSS Modules / Styled Components:**
+- Unused style definitions
+- If there are many dynamic styles, consider CSS variables + data attributes instead of CSS-in-JS
 
 ---
 
-### 4단계: 발견사항 보고
+### Step 4: Report Findings
 
 ```
-## UI 정리 분석 결과
+## UI Analysis Results
 
-프론트엔드: {감지된 디렉토리}
-대상: {N}개 파일
+Frontend: {detected directory}
+Scope: {N} files
 
-### 발견 사항 ({총 건수}건)
+### Findings ({total count})
 
-#### A. 컴포넌트 구조 ({N}건)
-- `파일:라인` — 설명 [must|should|nice]
+#### A. Component Structure ({N})
+- `file:line` — description [must|should|nice]
 
-#### B. CSS & 스타일링 ({N}건)
+#### B. CSS & Styling ({N})
 ...
 
-#### C. 접근성 ({N}건)
+#### C. Accessibility ({N})
 ...
 
-#### D. 성능 ({N}건)
+#### D. Performance ({N})
 ...
 
-(발견 건수 0인 카테고리는 생략)
+(Omit categories with 0 findings)
 ```
 
 ---
 
-### 5단계: 수정
+### Step 5: Apply Fixes
 
-- 보고 후 바로 수정 진행
-- `[must]` 중 파일 구조 변경이 필요하면 사용자에게 먼저 확인
-- **렌더링 결과가 바뀌면 안 됨** — 기능 변경 없이 코드 품질만 개선
-- 접근성 수정은 시각적 변화가 최소화되도록 (aria 속성 추가, 시맨틱 태그 교체 등)
-- 수정 후 빌드 검증
-
----
-
-### 6단계: 수정 요약
-
-```
-## UI 정리 완료
-
-수정: {N}건 / 스킵: {M}건
-빌드: ✅ 성공
-
-### 수정 내역
-- `파일` — 변경 내용 요약
-```
+- Proceed with fixes immediately after the report
+- If a `[must]` fix requires a file structure change, confirm with the user first
+- **Do not alter rendered output** — only improve code quality, never change functionality
+- Keep accessibility fixes visually minimal (add aria attributes, replace with semantic tags, etc.)
+- Verify the build after fixes
 
 ---
 
-### 주의사항
+### Step 6: Fix Summary
 
-- 과도한 추상화 금지 — 1회만 사용하는 패턴을 컴포넌트로 추출하지 않음
-- 커밋하지 않음 — 수정만 하고 커밋은 사용자가 별도로 요청
-- 쇼케이스/스토리북 파일은 의도적 나열이므로 중복 검사에서 제외
-- 접근성 수정은 기존 디자인을 해치지 않는 범위에서
+```
+## UI Cleanup Complete
+
+Fixed: {N} / Skipped: {M}
+Build: ✅ passed
+
+### Changes
+- `file` — summary of changes
+```
+
+---
+
+### Notes
+
+- No over-abstraction — do not extract single-use patterns into components
+- Do not commit — only apply fixes; let the user commit separately
+- Exclude showcase/Storybook files from duplication checks — repetition is intentional there
+- Keep accessibility fixes within bounds that don't break the existing design
