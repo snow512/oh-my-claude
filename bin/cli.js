@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const readline = require('readline');
 const { execFileSync } = require('child_process');
 
 const CLAUDE_DIR = path.join(require('os').homedir(), '.claude');
@@ -67,6 +68,16 @@ function backupAndLog(filePath) {
   if (bakPath) console.log(`💾 Backup: ${bakPath}`);
 }
 
+function ask(question) {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise((resolve) => {
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(answer.trim().toLowerCase());
+    });
+  });
+}
+
 function copySkills(src, dest) {
   const copied = [];
   try {
@@ -81,7 +92,7 @@ function copySkills(src, dest) {
   return copied;
 }
 
-function init() {
+async function init() {
   console.log('oh-my-claude init\n');
 
   const settingsPath = path.join(CLAUDE_DIR, 'settings.json');
@@ -116,11 +127,23 @@ function init() {
     console.log(`  ✅ ${name}`);
   }
 
-  // Copy statusline script (opt-in via --with-statusline flag)
-  if (process.argv.includes('--with-statusline')) {
-    const statuslineSrc = path.join(PACKAGE_ROOT, 'statusline-command.sh');
-    const statuslineDest = path.join(CLAUDE_DIR, 'statusline-command.sh');
-    try {
+  // Status line — ask user
+  const statuslineSrc = path.join(PACKAGE_ROOT, 'statusline-command.sh');
+  const statuslineDest = path.join(CLAUDE_DIR, 'statusline-command.sh');
+
+  if (fs.existsSync(statuslineSrc)) {
+    const alreadyExists = fs.existsSync(statuslineDest);
+    let install = false;
+
+    if (!alreadyExists) {
+      const answer = await ask('\nInstall custom status line? (y/n) ');
+      install = answer === 'y' || answer === 'yes';
+    } else {
+      const answer = await ask('\nStatus line already exists. Overwrite? (y/n) ');
+      install = answer === 'y' || answer === 'yes';
+    }
+
+    if (install) {
       fs.copyFileSync(statuslineSrc, statuslineDest);
       fs.chmodSync(statuslineDest, 0o755);
 
@@ -134,11 +157,9 @@ function init() {
           },
         });
       }
-      console.log('\n[Status Line]');
-      console.log(`  ✅ ${statuslineDest}`);
-    } catch {
-      console.log('\n[Status Line]');
-      console.log('  ⏭️  statusline-command.sh not found, skipped');
+      console.log(`  ✅ Status line installed: ${statuslineDest}`);
+    } else {
+      console.log('  ⏭️  Status line skipped');
     }
   }
 
@@ -203,10 +224,9 @@ switch (command) {
 oh-my-claude — Bootstrap and manage your Claude Code environment
 
 Usage:
-  oh-my-claude init                       Set up user-level settings & skills
-  oh-my-claude init --with-statusline     Also install custom status line
-  oh-my-claude project-init               Set up project-level permissions & skills
-  oh-my-claude --help                     Show this help message
+  oh-my-claude init            Set up user-level Claude Code settings & skills
+  oh-my-claude project-init    Set up project-level permissions & skills
+  oh-my-claude --help          Show this help message
 `);
     break;
   default:
