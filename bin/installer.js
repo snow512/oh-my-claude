@@ -45,6 +45,27 @@ function backup(filePath) {
   } catch { return null; }
 }
 
+function isDirChanged(srcDir, destDir) {
+  try {
+    const srcEntries = fs.readdirSync(srcDir, { withFileTypes: true });
+    for (const entry of srcEntries) {
+      const srcPath = path.join(srcDir, entry.name);
+      const destPath = path.join(destDir, entry.name);
+      if (entry.isDirectory()) {
+        if (isDirChanged(srcPath, destPath)) return true;
+      } else {
+        if (!fs.existsSync(destPath)) return true;
+        const srcContent = fs.readFileSync(srcPath);
+        const destContent = fs.readFileSync(destPath);
+        if (!srcContent.equals(destContent)) return true;
+      }
+    }
+    return false;
+  } catch {
+    return true;
+  }
+}
+
 function loadPreset(name) {
   const presetPath = path.join(PACKAGE_ROOT, 'presets', name);
   const preset = readJson(presetPath);
@@ -671,20 +692,33 @@ async function runUpdate() {
     }
   } catch {}
 
-  // Update existing + add new
+  // Compare and update only changed skills
   let updated = 0;
   let added = 0;
+  let skipped = 0;
+
   for (const name of repoSkills) {
-    if (localSkills.has(name)) {
+    const srcDir = path.join(skillsSrc, name);
+    const destDir = path.join(skillsDest, name);
+
+    if (!localSkills.has(name)) {
+      await progressLine(`Adding ${name} (new)`, () => {
+        copyDirRecursive(srcDir, destDir);
+      });
+      added++;
+      continue;
+    }
+
+    // Check if any file differs
+    const changed = isDirChanged(srcDir, destDir);
+    if (changed) {
       await progressLine(`Updating ${name}`, () => {
-        copyDirRecursive(path.join(skillsSrc, name), path.join(skillsDest, name));
+        copyDirRecursive(srcDir, destDir);
       });
       updated++;
     } else {
-      await progressLine(`Adding ${name} (new)`, () => {
-        copyDirRecursive(path.join(skillsSrc, name), path.join(skillsDest, name));
-      });
-      added++;
+      console.log(`  ${style('–', C.gray)} ${style(name, C.gray)} (up to date)`);
+      skipped++;
     }
   }
 
@@ -713,7 +747,11 @@ async function runUpdate() {
     }
   }
 
-  console.log(`\n  ${style('✓', C.green)} ${style(`Updated: ${updated}, Added: ${added}`, C.bold)}\n`);
+  const parts = [];
+  if (updated > 0) parts.push(`${updated} updated`);
+  if (added > 0) parts.push(`${added} added`);
+  if (skipped > 0) parts.push(`${skipped} up to date`);
+  console.log(`\n  ${style('✓', C.green)} ${style(parts.join(', '), C.bold)}\n`);
 }
 
 module.exports = { runInit, runProjectInit, runClone, runBackup, runRestore, runStatus, runDoctor, runUpdate };
