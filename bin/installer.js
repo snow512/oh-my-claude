@@ -251,15 +251,20 @@ async function runInit() {
 
   const useDefaults = await ask('Use defaults? (install everything)', true);
 
-  // Language selection for skills
-  let lang = 'en';
+  // Detect system language, fall back to 'en'
+  const sysLocale = (process.env.LANG || process.env.LC_ALL || process.env.LANGUAGE || 'en').toLowerCase();
+  const detectedLang = sysLocale.startsWith('ko') ? 'ko' : 'en';
+
+  let lang = detectedLang;
   if (!useDefaults) {
+    const defaultHint = detectedLang === 'ko' ? `en/${style('[ko]', C.gray)}` : `${style('[en]', C.gray)}/ko`;
     const rl = require('readline').createInterface({ input: process.stdin, output: process.stdout });
     lang = await new Promise((resolve) => {
-      rl.question(`  Skill language? ${style('[en]', C.gray)}/ko: `, (answer) => {
+      rl.question(`  Skill language? ${defaultHint}: `, (answer) => {
         rl.close();
         const a = answer.trim().toLowerCase();
-        resolve(a === 'ko' ? 'ko' : 'en');
+        if (a === '') resolve(detectedLang);
+        else resolve(a === 'ko' ? 'ko' : 'en');
       });
     });
   }
