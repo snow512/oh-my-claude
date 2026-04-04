@@ -117,14 +117,53 @@ async function init() {
   console.log(`  ✅ enabledPlugins: ${pluginCount}`);
   console.log(`  ✅ marketplaces: ${Object.keys(preset.extraKnownMarketplaces || {}).join(', ')}`);
 
-  const copiedSkills = copySkills(
-    path.join(PACKAGE_ROOT, 'user-skills'),
-    path.join(CLAUDE_DIR, 'skills'),
-  );
+  // User skills — ask which to install
+  const skillsSrc = path.join(PACKAGE_ROOT, 'user-skills');
+  const skillsDest = path.join(CLAUDE_DIR, 'skills');
+  const copiedSkills = [];
 
-  console.log(`\n[User Skills] (${copiedSkills.length})`);
-  for (const name of copiedSkills) {
-    console.log(`  ✅ ${name}`);
+  try {
+    const available = fs.readdirSync(skillsSrc, { withFileTypes: true })
+      .filter(e => e.isDirectory())
+      .map(e => {
+        const skillFile = path.join(skillsSrc, e.name, 'SKILL.md');
+        let desc = '';
+        try {
+          const content = fs.readFileSync(skillFile, 'utf-8');
+          const match = content.match(/description:\s*>?\s*\n?\s*(.+)/);
+          if (match) desc = match[1].trim().slice(0, 60);
+        } catch {}
+        return { name: e.name, desc };
+      });
+
+    console.log(`\n[User Skills] (${available.length} available)`);
+    for (const { name, desc } of available) {
+      console.log(`  ${name} — ${desc || '(no description)'}`);
+    }
+
+    const answer = await ask('\nInstall all skills? (y/n) ');
+    const installAll = answer === 'y' || answer === 'yes';
+
+    if (installAll) {
+      for (const { name } of available) {
+        copyDirRecursive(path.join(skillsSrc, name), path.join(skillsDest, name));
+        copiedSkills.push(name);
+      }
+      console.log(`  ✅ All ${available.length} skills installed`);
+    } else {
+      for (const { name, desc } of available) {
+        const a = await ask(`  Install "${name}"? (y/n) `);
+        if (a === 'y' || a === 'yes') {
+          copyDirRecursive(path.join(skillsSrc, name), path.join(skillsDest, name));
+          copiedSkills.push(name);
+          console.log(`    ✅ installed`);
+        } else {
+          console.log(`    ⏭️  skipped`);
+        }
+      }
+    }
+  } catch {
+    // user-skills directory doesn't exist
   }
 
   // Status line — ask user
