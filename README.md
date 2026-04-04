@@ -2,167 +2,158 @@
 
 Bootstrap and manage your Claude Code environment — npm CLI + Claude plugin hybrid.
 
-Sets up user-level permissions, installs curated plugins, and deploys skills with a single command. Works both from the terminal (new machine setup) and from inside a Claude session (Korean trigger commands included).
+Like oh-my-zsh for your shell, oh-my-claude sets up permissions, plugins, skills, and status line with a single command. Works both from the terminal and inside Claude Code sessions.
 
 ---
 
 ## Quick Start
 
-### New machine setup (terminal)
-
 ```bash
-# Set up user-level Claude Code settings & skills
+# Full interactive setup
 npx oh-my-claude init
 
-# Set up project-level permissions (run inside a project directory)
-npx oh-my-claude project-init
+# Or use the alias
+omc init
 ```
+
+That's it. Answer one question (`Use defaults? [Y/n]`) and everything is configured.
 
 ### Inside a Claude Code session
 
-After installing the plugin, trigger commands with natural language:
-
 | What you type | What runs |
 |---|---|
-| `클로드초기설정해` / `환경설정해` / `setup` | `/claude-init` → `npx oh-my-claude init` |
-| `프로젝트초기설정해` / `권한설정해` | `/project-init` → `npx oh-my-claude project-init` |
+| `클로드초기설정해` / `setup` | `/claude-init` → `omc init` |
+| `프로젝트초기설정해` / `project setup` | `/project-init` → `omc project-init` |
 
 ---
 
 ## Commands
 
-### `oh-my-claude init`
-
-Sets up your **user-level** Claude Code environment:
-
-- Merges `presets/user.json` into `~/.claude/settings.json`
-  - Applies permission allow/deny rules (safe defaults: no `rm -rf`, no force push, etc.)
-  - Enables 14 curated plugins from the official marketplace
-  - Registers the official plugin marketplace
-- Copies all skills from `user-skills/` to `~/.claude/skills/`
-- Backs up any existing `settings.json` before overwriting
-
 ```
-oh-my-claude init
+Usage: omc <command> [options]
 
-[설정]
-  ✅ permissions: allow 10개, deny 7개
-  ✅ enabledPlugins: 14개
-  ✅ marketplaces: claude-plugins-official
+Setup
+  init                  Interactive environment setup (all-in-one)
+    --yes, -y           Skip prompts, install everything
+    --lang=ko           Set skill language (en|ko, auto-detected)
+  install <target>      Install a specific component
+    skills              Install user skills only
+    plugins             Apply plugins to settings.json
+    permissions         Apply permissions to settings.json
+    statusline          Install status line script
+    all                 Install everything (= init -y)
+  project-init          Set up project-level permissions
+  update                Check & apply updates from repo
+    --yes, -y           Apply all without asking
+    --force, -f         Force even if up to date
 
-[유저 스킬] (11개)
-  ✅ check-progress
-  ✅ commit-push
-  ...
+Sessions
+  sessions              List recent sessions
+    --all, -a           All projects (default: current only)
+    --project=<name>    Filter by project
+  resume [id]           Resume a session (picker if no id)
+    --fork              Fork as new session
 
-완료!
-```
+Info
+  status                Environment summary
+    --json              JSON output
+  doctor                Diagnose issues
 
-### `oh-my-claude project-init`
-
-Sets up **project-level** permissions for the current git repository:
-
-- Merges `presets/project.json` into `.claude/settings.local.json`
-  - Unlocks write/edit/bash operations scoped to this project
-- Copies skills from `project-skills/` to `.claude/skills/` (empty by default — add your own)
-- Backs up any existing `settings.local.json` before overwriting
-
-```
-oh-my-claude project-init
-
-프로젝트: /your/project
-
-[권한]
-  ✅ allow: Write(*), Edit(*), Bash(*), NotebookEdit(*)
-
-완료!
+Environment
+  clone                 Export ~/.claude/ as portable package
+  backup                Snapshot to .tar.gz
+  restore <file>        Restore from backup
 ```
 
-### `oh-my-claude --help`
+### Example: `omc init`
 
-Prints usage information.
+```
+┌─────────────────────────────────────┐
+│  oh-my-claude                       │
+│  Claude Code Environment Bootstrap  │
+└─────────────────────────────────────┘
+
+Use defaults? (install everything) [Y/n]:
+
+Step 1/6 — Permissions (allow)
+  ✓ Applying 10 allow rules
+
+Step 2/6 — Permissions (deny)
+  ✓ Applying 7 deny rules
+
+Step 3/6 — Plugins
+  ✓ Enabling 14 plugins
+
+Step 4/6 — User Skills
+  ✓ Installing all 13 skills (en)
+
+Step 5/6 — Status Line
+  ✓ Installing status line
+
+Step 6/6 — Summary
+  ✓ Allow rules: 10 configured
+  ✓ Deny rules: 7 configured
+  ✓ Plugins: 14 enabled
+  ✓ Skills: 13/13 installed
+  ✓ Status Line: installed
+
+Done! 🎉
+```
+
+---
+
+## User Skills (13)
+
+| Skill | Trigger | Purpose |
+|-------|---------|---------|
+| branch-sync | sync, pull from | Bidirectional branch sync |
+| clean-code | clean code | Lint → analyze → fix → /simplify |
+| clean-ui | clean ui | UI code quality (a11y, tokens, patterns) |
+| commit-push | commit, push | Lint → docs → commit → push |
+| doc-structure | document, update docs | Generate/update project docs |
+| enhance | harden, improve, unify UI | Active code/UX/UI improvement |
+| merge-branch | merge, create PR | Direct merge or PR creation |
+| project-sync | pull, sync | git pull + briefing + deps |
+| ralph-loop-run | ralph loop | Auto-iterate with completion detection |
+| restart-server | restart, stop server | Auto-detect project → restart/stop |
+| security-audit | security audit | Secrets + .env + permissions scan |
+| setup-workspace | setup workspace | Hard-clone parallel workspaces |
+| version-release | bump version, changelog | SemVer + CHANGELOG.md |
+
+All skills support both English and Korean triggers. Skills are available in English (default) and Korean (`--lang=ko`).
 
 ---
 
 ## Customization
 
-Fork this repository and edit the presets and skills to match your workflow.
+Fork this repo and edit:
 
-### Edit permission presets
+- **`presets/user.json`** — permissions (allow/deny), plugins, marketplaces
+- **`presets/project.json`** — project-level permissions
+- **`user-skills/`** — add, remove, or edit skills
+- **`statusline-command.sh`** — customize the status bar
 
-**`presets/user.json`** — user-level permissions and plugins:
-- `permissions.allow` — tools Claude can use without confirmation
-- `permissions.deny` — tools always blocked (e.g. `Bash(rm -rf:*)`)
-- `enabledPlugins` — plugins to auto-install on next Claude session start
-- `extraKnownMarketplaces` — additional plugin marketplaces to register
-
-**`presets/project.json`** — project-level permissions:
-- `permissions.allow` — destructive tools unlocked per-project (Write, Edit, Bash, etc.)
-
-### Add or edit user skills
-
-Drop skill directories into `user-skills/`. Each skill needs a `SKILL.md` file:
-
-```
-user-skills/
-  my-skill/
-    SKILL.md        ← skill definition (trigger keywords, instructions)
-```
-
-`oh-my-claude init` copies everything from `user-skills/` to `~/.claude/skills/`.
-
-### Add project-specific skills
-
-Drop skill directories into `project-skills/`. They will be copied to `.claude/skills/` when `project-init` runs.
-
-```
-project-skills/
-  deploy-prod/
-    SKILL.md
-```
+Run `omc update` to pull latest changes after editing.
 
 ---
 
 ## How It Works
 
-The CLI does the actual work. The Claude plugin commands (`/claude-init`, `/project-init`) are thin wrappers that run `npx oh-my-claude <command>` inside a Bash tool call.
-
 ```
-User types: "클로드초기설정해"
-      ↓
-Claude triggers: /claude-init (commands/claude-init.md)
-      ↓
-Claude runs: Bash → npx oh-my-claude init
-      ↓
-CLI writes: ~/.claude/settings.json + ~/.claude/skills/
+Terminal: omc init
+    ↓
+CLI (bin/cli.js → installer.js) reads presets + copies skills
+    ↓
+~/.claude/settings.json + ~/.claude/skills/ updated
+
+Claude session: "클로드초기설정해"
+    ↓
+Plugin command: /claude-init
+    ↓
+Runs: npx oh-my-claude init (same CLI)
 ```
 
-This means:
-- The CLI works standalone (no Claude session needed)
-- The plugin commands are ergonomic shortcuts for when you're already in Claude
-- Customizations live in this repo, not scattered across your machine
-
-### File layout
-
-```
-oh-my-claude/
-  bin/cli.js              ← CLI entrypoint
-  presets/
-    user.json             ← user-level settings preset
-    project.json          ← project-level settings preset
-  user-skills/            ← skills copied to ~/.claude/skills/ by init
-    check-progress/
-    commit-push/
-    ...
-  project-skills/         ← skills copied to .claude/skills/ by project-init
-  commands/
-    claude-init.md        ← /claude-init plugin command
-    project-init.md       ← /project-init plugin command
-  skills/
-    claude-init.md        ← skill trigger for claude-init
-    project-init.md       ← skill trigger for project-init
-  plugin.json             ← Claude plugin manifest
-```
+The CLI does the actual work. Plugin commands are thin wrappers.
 
 ---
 
