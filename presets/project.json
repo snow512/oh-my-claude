@@ -1,0 +1,12 @@
+{
+  "name": "default",
+  "description": "Default project-level permissions for destructive operations",
+  "permissions": {
+    "allow": [
+      "Write(*)",
+      "Edit(*)",
+      "Bash(*)",
+      "NotebookEdit(*)"
+    ]
+  }
+}
