@@ -1,0 +1,13 @@
+{
+  "name": "oh-my-claude",
+  "version": "1.0.0",
+  "description": "Bootstrap and manage your Claude Code environment",
+  "skills": [
+    "skills/claude-init.md",
+    "skills/project-init.md"
+  ],
+  "commands": [
+    "commands/claude-init.md",
+    "commands/project-init.md"
+  ]
+}
