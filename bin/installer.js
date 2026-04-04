@@ -308,4 +308,157 @@ function runProjectInit() {
   console.log('\n  Done!\n');
 }
 
-module.exports = { runInit, runProjectInit };
+// --- Clone: export current Claude environment ---
+
+async function runClone() {
+  renderBanner();
+  console.log(`  ${style('Exporting current Claude environment...', C.bold)}\n`);
+
+  const ts = timestamp();
+  const outDir = path.join(process.cwd(), `claude-env-${ts}`);
+  fs.mkdirSync(outDir, { recursive: true });
+
+  const items = [
+    { src: path.join(CLAUDE_DIR, 'settings.json'), dest: 'settings.json', label: 'Settings' },
+    { src: path.join(CLAUDE_DIR, 'statusline-command.sh'), dest: 'statusline-command.sh', label: 'Status line' },
+    { src: path.join(CLAUDE_DIR, 'skills'), dest: 'skills', label: 'User skills', dir: true },
+    { src: path.join(CLAUDE_DIR, 'commands'), dest: 'commands', label: 'User commands', dir: true },
+  ];
+
+  let count = 0;
+  for (const item of items) {
+    if (!fs.existsSync(item.src)) {
+      console.log(`  ${style('⏭', C.gray)}  ${item.label} — not found`);
+      continue;
+    }
+    const destPath = path.join(outDir, item.dest);
+    if (item.dir) {
+      copyDirRecursive(item.src, destPath);
+    } else {
+      fs.copyFileSync(item.src, destPath);
+    }
+    console.log(`  ${style('✓', C.green)} ${item.label}`);
+    count++;
+  }
+
+  // Also export installed plugins list
+  const pluginsFile = path.join(CLAUDE_DIR, 'plugins', 'installed_plugins.json');
+  if (fs.existsSync(pluginsFile)) {
+    fs.mkdirSync(path.join(outDir, 'plugins'), { recursive: true });
+    fs.copyFileSync(pluginsFile, path.join(outDir, 'plugins', 'installed_plugins.json'));
+    console.log(`  ${style('✓', C.green)} Installed plugins list`);
+    count++;
+  }
+
+  console.log(`\n  ${style('✓', C.green)} ${style(`${count} items exported to:`, C.bold)}`);
+  console.log(`  ${style(outDir, C.cyan)}`);
+  console.log(`\n  To apply on another machine:`);
+  console.log(`  ${style('1.', C.gray)} Copy this folder to the target machine`);
+  console.log(`  ${style('2.', C.gray)} Run: ${style('omc restore <path-to-folder>', C.cyan)}\n`);
+}
+
+// --- Backup: snapshot ~/.claude/ ---
+
+async function runBackup() {
+  renderBanner();
+
+  const ts = timestamp();
+  const tarName = `claude-backup-${ts}.tar.gz`;
+  const tarPath = path.join(process.cwd(), tarName);
+
+  console.log(`  ${style('Creating backup...', C.bold)}\n`);
+
+  await progressLine('Compressing ~/.claude/', () => {
+    execFileSync('tar', [
+      '--exclude', '*/plugins/cache/*',
+      '--exclude', '*/plugins/marketplaces/*',
+      '-czf', tarPath,
+      '-C', path.dirname(CLAUDE_DIR),
+      path.basename(CLAUDE_DIR),
+    ], { stdio: 'pipe' });
+  });
+
+  const size = fs.statSync(tarPath).size;
+  const sizeStr = size > 1048576
+    ? `${(size / 1048576).toFixed(1)} MB`
+    : `${(size / 1024).toFixed(0)} KB`;
+
+  console.log(`\n  ${style('✓', C.green)} ${style('Backup created:', C.bold)} ${style(tarName, C.cyan)}`);
+  console.log(`  ${style('Size:', C.gray)} ${sizeStr}`);
+  console.log(`  ${style('Restore with:', C.gray)} ${style(`omc restore ${tarName}`, C.cyan)}\n`);
+}
+
+// --- Restore: restore from backup ---
+
+async function runRestore(source) {
+  renderBanner();
+
+  if (!source) {
+    console.error(`  ${style('ERROR:', C.red)} Please specify a backup file or clone folder`);
+    console.error(`  ${style('Usage:', C.gray)} omc restore <file.tar.gz | clone-folder>\n`);
+    process.exit(1);
+  }
+
+  if (!fs.existsSync(source)) {
+    console.error(`  ${style('ERROR:', C.red)} Not found: ${source}\n`);
+    process.exit(1);
+  }
+
+  const stat = fs.statSync(source);
+
+  // Backup existing
+  const bakPath = backup(path.join(CLAUDE_DIR, 'settings.json'));
+  if (bakPath) {
+    console.log(`  ${style('💾', C.gray)} ${style('Backup: ' + bakPath, C.gray)}\n`);
+  }
+
+  if (stat.isDirectory()) {
+    // Restore from clone folder
+    console.log(`  ${style('Restoring from clone folder...', C.bold)}\n`);
+
+    const items = [
+      { src: 'settings.json', dest: path.join(CLAUDE_DIR, 'settings.json'), label: 'Settings' },
+      { src: 'statusline-command.sh', dest: path.join(CLAUDE_DIR, 'statusline-command.sh'), label: 'Status line' },
+      { src: 'skills', dest: path.join(CLAUDE_DIR, 'skills'), label: 'User skills', dir: true },
+      { src: 'commands', dest: path.join(CLAUDE_DIR, 'commands'), label: 'User commands', dir: true },
+    ];
+
+    let count = 0;
+    for (const item of items) {
+      const srcPath = path.join(source, item.src);
+      if (!fs.existsSync(srcPath)) {
+        console.log(`  ${style('⏭', C.gray)}  ${item.label} — not in backup`);
+        continue;
+      }
+      if (item.dir) {
+        copyDirRecursive(srcPath, item.dest);
+      } else {
+        fs.mkdirSync(path.dirname(item.dest), { recursive: true });
+        fs.copyFileSync(srcPath, item.dest);
+      }
+      console.log(`  ${style('✓', C.green)} ${item.label}`);
+      count++;
+    }
+
+    console.log(`\n  ${style('✓', C.green)} ${style(`${count} items restored`, C.bold)}\n`);
+
+  } else if (source.endsWith('.tar.gz') || source.endsWith('.tgz')) {
+    // Restore from tarball
+    console.log(`  ${style('Restoring from backup...', C.bold)}\n`);
+
+    await progressLine('Extracting backup', () => {
+      execFileSync('tar', [
+        'xzf', path.resolve(source),
+        '-C', path.dirname(CLAUDE_DIR),
+      ], { stdio: 'pipe' });
+    });
+
+    console.log(`\n  ${style('✓', C.green)} ${style('Restore complete', C.bold)}\n`);
+
+  } else {
+    console.error(`  ${style('ERROR:', C.red)} Unsupported format. Use .tar.gz or a clone folder\n`);
+    process.exit(1);
+  }
+}
+
+module.exports = { runInit, runProjectInit, runClone, runBackup, runRestore };

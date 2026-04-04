@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "description": "Bootstrap and manage your Claude Code environment — npm CLI + Claude plugin hybrid",
   "bin": {
-    "oh-my-claude": "./bin/cli.js"
+    "oh-my-claude": "./bin/cli.js",
+    "omc": "./bin/cli.js"
   },
   "files": [
     "bin/",
