@@ -1,6 +1,6 @@
 {
   "name": "oh-my-claude",
-  "version": "1.0.0",
+  "version": "0.1.0-beta",
   "description": "Bootstrap and manage your Claude Code environment — npm CLI + Claude plugin hybrid",
   "bin": {
     "oh-my-claude": "./bin/cli.js",
