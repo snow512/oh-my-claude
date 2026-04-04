@@ -8,8 +8,7 @@ const CLAUDE_DIR = path.join(require('os').homedir(), '.claude');
 const PACKAGE_ROOT = path.resolve(__dirname, '..');
 
 function timestamp() {
-  const now = new Date();
-  return now.toISOString().replace(/[-:T]/g, '').slice(0, 14);
+  return new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
 }
 
 function readJson(filePath) {
@@ -21,23 +20,20 @@ function readJson(filePath) {
 }
 
 function writeJson(filePath, data) {
-  const dir = path.dirname(filePath);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2) + '\n');
 }
 
 function copyDirRecursive(src, dest) {
-  if (!fs.existsSync(src)) return 0;
-  if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
+  fs.mkdirSync(dest, { recursive: true });
 
   let count = 0;
-  for (const entry of fs.readdirSync(src)) {
-    const srcPath = path.join(src, entry);
-    const destPath = path.join(dest, entry);
-    const stat = fs.lstatSync(srcPath);
-    if (stat.isSymbolicLink()) continue;
+  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    if (entry.isSymbolicLink()) continue;
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
 
-    if (stat.isDirectory()) {
+    if (entry.isDirectory()) {
       count += copyDirRecursive(srcPath, destPath);
     } else {
       fs.copyFileSync(srcPath, destPath);
@@ -48,46 +44,58 @@ function copyDirRecursive(src, dest) {
 }
 
 function backup(filePath) {
-  if (!fs.existsSync(filePath)) return null;
-  const bakPath = `${filePath}.bak.${timestamp()}`;
-  fs.copyFileSync(filePath, bakPath);
-  return bakPath;
+  try {
+    const bakPath = `${filePath}.bak.${timestamp()}`;
+    fs.copyFileSync(filePath, bakPath);
+    return bakPath;
+  } catch {
+    return null;
+  }
 }
 
-// --- init command ---
+function loadPreset(presetPath) {
+  const preset = readJson(presetPath);
+  if (!preset || !preset.permissions) {
+    console.error(`ERROR: ${path.basename(presetPath)} is missing or invalid`);
+    process.exit(1);
+  }
+  return preset;
+}
+
+function backupAndLog(filePath) {
+  const bakPath = backup(filePath);
+  if (bakPath) console.log(`💾 백업: ${bakPath}`);
+}
+
+function copySkills(src, dest) {
+  const copied = [];
+  try {
+    for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      copyDirRecursive(path.join(src, entry.name), path.join(dest, entry.name));
+      copied.push(entry.name);
+    }
+  } catch {
+    // src directory doesn't exist — no skills to copy
+  }
+  return copied;
+}
 
 function init() {
   console.log('oh-my-claude init\n');
 
   const settingsPath = path.join(CLAUDE_DIR, 'settings.json');
-  const presetPath = path.join(PACKAGE_ROOT, 'presets', 'user.json');
-  const skillsSrc = path.join(PACKAGE_ROOT, 'user-skills');
-  const skillsDest = path.join(CLAUDE_DIR, 'skills');
+  const preset = loadPreset(path.join(PACKAGE_ROOT, 'presets', 'user.json'));
 
-  // 1. Load preset
-  const preset = readJson(presetPath);
-  if (!preset) {
-    console.error('ERROR: presets/user.json not found');
-    process.exit(1);
-  }
-  if (!preset.permissions) {
-    console.error('ERROR: preset file is missing or has no permissions key');
-    process.exit(1);
-  }
+  backupAndLog(settingsPath);
 
-  // 2. Backup existing settings
-  const bakPath = backup(settingsPath);
-  if (bakPath) console.log(`💾 백업: ${bakPath}`);
-
-  // 3. Merge preset into settings
   const existing = readJson(settingsPath) || {};
-  const merged = {
+  writeJson(settingsPath, {
     ...existing,
     permissions: preset.permissions,
     enabledPlugins: preset.enabledPlugins,
     extraKnownMarketplaces: preset.extraKnownMarketplaces,
-  };
-  writeJson(settingsPath, merged);
+  });
 
   const allowCount = preset.permissions.allow?.length || 0;
   const denyCount = preset.permissions.deny?.length || 0;
@@ -98,18 +106,10 @@ function init() {
   console.log(`  ✅ enabledPlugins: ${pluginCount}개`);
   console.log(`  ✅ marketplaces: ${Object.keys(preset.extraKnownMarketplaces || {}).join(', ')}`);
 
-  // 4. Copy user skills
-  const copiedSkills = [];
-  if (fs.existsSync(skillsSrc)) {
-    for (const dir of fs.readdirSync(skillsSrc)) {
-      const srcDir = path.join(skillsSrc, dir);
-      if (dir === '.gitkeep') continue;
-      if (!fs.statSync(srcDir).isDirectory()) continue;
-      const destDir = path.join(skillsDest, dir);
-      copyDirRecursive(srcDir, destDir);
-      copiedSkills.push(dir);
-    }
-  }
+  const copiedSkills = copySkills(
+    path.join(PACKAGE_ROOT, 'user-skills'),
+    path.join(CLAUDE_DIR, 'skills'),
+  );
 
   console.log(`\n[유저 스킬] (${copiedSkills.length}개)`);
   for (const name of copiedSkills) {
@@ -120,12 +120,9 @@ function init() {
   console.log('\n완료!');
 }
 
-// --- project-init command ---
-
 function projectInit() {
   console.log('oh-my-claude project-init\n');
 
-  // 1. Find project root
   let projectRoot;
   try {
     projectRoot = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf-8' }).trim();
@@ -135,49 +132,24 @@ function projectInit() {
 
   const claudeDir = path.join(projectRoot, '.claude');
   const settingsPath = path.join(claudeDir, 'settings.local.json');
-  const presetPath = path.join(PACKAGE_ROOT, 'presets', 'project.json');
-  const skillsSrc = path.join(PACKAGE_ROOT, 'project-skills');
-  const skillsDest = path.join(claudeDir, 'skills');
+  const preset = loadPreset(path.join(PACKAGE_ROOT, 'presets', 'project.json'));
 
-  // 2. Load preset
-  const preset = readJson(presetPath);
-  if (!preset) {
-    console.error('ERROR: presets/project.json not found');
-    process.exit(1);
-  }
-  if (!preset.permissions) {
-    console.error('ERROR: preset file is missing or has no permissions key');
-    process.exit(1);
-  }
+  backupAndLog(settingsPath);
 
-  // 3. Backup existing settings
-  const bakPath = backup(settingsPath);
-  if (bakPath) console.log(`💾 백업: ${bakPath}`);
-
-  // 4. Merge preset into settings
   const existing = readJson(settingsPath) || {};
-  const merged = {
+  writeJson(settingsPath, {
     ...existing,
     permissions: preset.permissions,
-  };
-  writeJson(settingsPath, merged);
+  });
 
   console.log(`프로젝트: ${projectRoot}\n`);
   console.log('[권한]');
   console.log(`  ✅ allow: ${preset.permissions.allow.join(', ')}`);
 
-  // 5. Copy project skills
-  const copiedSkills = [];
-  if (fs.existsSync(skillsSrc)) {
-    for (const entry of fs.readdirSync(skillsSrc)) {
-      const srcDir = path.join(skillsSrc, entry);
-      if (entry === '.gitkeep') continue;
-      if (!fs.statSync(srcDir).isDirectory()) continue;
-      const destDir = path.join(skillsDest, entry);
-      copyDirRecursive(srcDir, destDir);
-      copiedSkills.push(entry);
-    }
-  }
+  const copiedSkills = copySkills(
+    path.join(PACKAGE_ROOT, 'project-skills'),
+    path.join(claudeDir, 'skills'),
+  );
 
   if (copiedSkills.length > 0) {
     console.log(`\n[프로젝트 스킬] (${copiedSkills.length}개)`);
@@ -188,8 +160,6 @@ function projectInit() {
 
   console.log('\n완료!');
 }
-
-// --- main ---
 
 const command = process.argv[2];
 
