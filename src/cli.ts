@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { runInit, runProjectInit, runInstall, runClone, runBackup, runRestore, runStatus, runDoctor, runUpdate, runSessions, runResume } from './installer';
+import { runInit, runProjectInit, runInstall, runClone, runBackup, runRestore, runStatus, runDoctor, runUpdate, runSessions, runResume, runUninstall } from './installer';
 import type { Opts } from './installer';
 import { renderBanner, C, style } from './ui';
 
@@ -79,7 +79,9 @@ function showHelp(): void {
   console.log(`    ${style('backup', c)}            Snapshot ~/.claude/ to .tar.gz`);
   console.log(`      ${style('--output=<file>', g)} Output file path`);
   console.log(`    ${style('restore', c)} <file>    Restore from backup`);
-  console.log(`      ${style('--force, -f', g)}     Skip backup of current settings\n`);
+  console.log(`      ${style('--force, -f', g)}     Skip backup of current settings`);
+  console.log(`    ${style('uninstall', c)}         Remove oh-my-claude (skills, settings, CLAUDE.md)`);
+  console.log(`      ${style('--yes, -y', g)}       Remove everything without asking\n`);
 
   console.log(`  ${style('Global Options', b)}`);
   console.log(`    ${style('--help, -h', c)}        Show this help message`);
@@ -107,6 +109,7 @@ switch (command) {
   case 'update':       runUpdate(opts); break;
   case 'sessions':     runSessions(opts); break;
   case 'resume':       runResume(subcommand, opts); break;
+  case 'uninstall':    runUninstall(opts); break;
   case '--version':    showVersion(); break;
   case '--help': case '-h': case undefined:
     showHelp(); break;

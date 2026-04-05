@@ -275,7 +275,7 @@ export async function runInit(opts: Opts = {}): Promise<void> {
     });
   }
 
-  const totalSteps = 6;
+  const totalSteps = 7;
   const settingsPath = path.join(CLAUDE_DIR, 'settings.json');
   const preset = loadPreset('user.json');
   const bakPath = backup(settingsPath);
@@ -310,13 +310,17 @@ export async function runInit(opts: Opts = {}): Promise<void> {
   renderStep(5, totalSteps, 'Status Line');
   const statusResult = await installStatusLine(settingsPath, useDefaults);
 
-  renderStep(6, totalSteps, 'Summary');
+  renderStep(6, totalSteps, 'CLAUDE.md');
+  const claudeMdResult = await installClaudeMd(useDefaults);
+
+  renderStep(7, totalSteps, 'Summary');
   renderSummary([
     { ok: true, label: 'Allow rules', detail: `${selectedAllow.length} configured` },
     { ok: true, label: 'Deny rules', detail: `${selectedDeny.length} configured` },
     { ok: true, label: 'Plugins', detail: `${selectedPlugins.length} enabled` },
     { ok: skillsResult.ok, label: skillsResult.label, detail: skillsResult.detail },
     { ok: statusResult.ok, label: statusResult.label, detail: statusResult.detail },
+    { ok: claudeMdResult.ok, label: claudeMdResult.label, detail: claudeMdResult.detail },
   ]);
   renderDone();
 }
@@ -831,4 +835,184 @@ export async function runResume(sessionId: string | undefined, opts: Opts = {}):
 
   try { execFileSync('claude', claudeArgs, { stdio: 'inherit' }); }
   catch (err: unknown) { if ((err as { status?: number }).status) process.exit((err as { status: number }).status); }
+}
+
+// --- CLAUDE.md management ---
+
+const OMC_START = '<!-- <omc> — managed by oh-my-claude, do not edit manually -->';
+const OMC_END = '<!-- </omc> -->';
+
+function getOmcContent(): string {
+  const templatePath = path.join(PACKAGE_ROOT, 'presets', 'claude-md.md');
+  return fs.readFileSync(templatePath, 'utf-8').trim();
+}
+
+function hasOmcBlock(content: string): boolean {
+  return content.includes(OMC_START) && content.includes(OMC_END);
+}
+
+function extractOmcBlock(content: string): string {
+  const startIdx = content.indexOf(OMC_START);
+  const endIdx = content.indexOf(OMC_END);
+  if (startIdx === -1 || endIdx === -1) return '';
+  return content.slice(startIdx, endIdx + OMC_END.length);
+}
+
+function removeOmcBlock(content: string): string {
+  const startIdx = content.indexOf(OMC_START);
+  const endIdx = content.indexOf(OMC_END);
+  if (startIdx === -1 || endIdx === -1) return content;
+  return (content.slice(0, startIdx) + content.slice(endIdx + OMC_END.length)).replace(/\n{3,}/g, '\n\n').trim();
+}
+
+export async function installClaudeMd(useDefaults: boolean): Promise<SummaryResult> {
+  const claudeMdPath = path.join(CLAUDE_DIR, 'CLAUDE.md');
+  const omcContent = getOmcContent();
+
+  const existing = fs.existsSync(claudeMdPath) ? fs.readFileSync(claudeMdPath, 'utf-8') : '';
+
+  if (hasOmcBlock(existing)) {
+    const currentBlock = extractOmcBlock(existing);
+    if (currentBlock.trim() === omcContent.trim()) {
+      return { ok: true, label: 'CLAUDE.md', detail: 'up to date' };
+    }
+
+    // Block exists but content changed — check if user modified it
+    let install = useDefaults;
+    if (!useDefaults) {
+      install = await ask('CLAUDE.md omc section has updates. Apply?', true);
+    }
+
+    if (install) {
+      const updated = existing.replace(currentBlock, omcContent);
+      fs.writeFileSync(claudeMdPath, updated);
+      return { ok: true, label: 'CLAUDE.md', detail: 'updated' };
+    }
+    return { ok: false, label: 'CLAUDE.md', detail: 'skipped' };
+  }
+
+  // No omc block yet — append
+  let install = useDefaults;
+  if (!useDefaults) {
+    install = await ask('Add oh-my-claude section to CLAUDE.md?', true);
+  }
+
+  if (install) {
+    const newContent = existing ? existing.trimEnd() + '\n\n' + omcContent + '\n' : omcContent + '\n';
+    fs.mkdirSync(path.dirname(claudeMdPath), { recursive: true });
+    fs.writeFileSync(claudeMdPath, newContent);
+    return { ok: true, label: 'CLAUDE.md', detail: 'installed' };
+  }
+  return { ok: false, label: 'CLAUDE.md', detail: 'skipped' };
+}
+
+// --- Uninstall ---
+
+export async function runUninstall(opts: Opts = {}): Promise<void> {
+  renderBanner();
+  console.log(`  ${style('Uninstalling oh-my-claude...', C.bold)}\n`);
+
+  const settingsPath = path.join(CLAUDE_DIR, 'settings.json');
+  const skillsDest = path.join(CLAUDE_DIR, 'skills');
+  const statuslineDest = path.join(CLAUDE_DIR, 'statusline-command.sh');
+  const claudeMdPath = path.join(CLAUDE_DIR, 'CLAUDE.md');
+
+  // 1. Remove omc block from CLAUDE.md
+  if (fs.existsSync(claudeMdPath)) {
+    const content = fs.readFileSync(claudeMdPath, 'utf-8');
+    if (hasOmcBlock(content)) {
+      const cleaned = removeOmcBlock(content);
+      if (cleaned !== content) {
+        if (opts.yes || await ask('Remove oh-my-claude section from CLAUDE.md?', true)) {
+          fs.writeFileSync(claudeMdPath, cleaned + '\n');
+          console.log(`  ${style('✓', C.green)} CLAUDE.md — omc section removed`);
+        } else {
+          console.log(`  ${style('⏭', C.gray)}  CLAUDE.md skipped`);
+        }
+      }
+    }
+  }
+
+  // 2. Remove skills
+  if (fs.existsSync(skillsDest)) {
+    const skillsSrc = path.join(PACKAGE_ROOT, 'user-skills');
+    const repoSkills = new Set<string>();
+    try {
+      for (const e of fs.readdirSync(skillsSrc, { withFileTypes: true })) {
+        if (e.isDirectory()) repoSkills.add(e.name);
+      }
+    } catch {}
+
+    const localSkills = fs.readdirSync(skillsDest, { withFileTypes: true })
+      .filter(e => e.isDirectory())
+      .map(e => e.name);
+
+    const omcSkills = localSkills.filter(s => repoSkills.has(s));
+    const userSkills = localSkills.filter(s => !repoSkills.has(s));
+
+    if (omcSkills.length > 0) {
+      if (opts.yes || await ask(`Remove ${omcSkills.length} oh-my-claude skills?`, true)) {
+        for (const name of omcSkills) {
+          fs.rmSync(path.join(skillsDest, name), { recursive: true });
+        }
+        console.log(`  ${style('✓', C.green)} ${omcSkills.length} skills removed`);
+      } else {
+        console.log(`  ${style('⏭', C.gray)}  Skills skipped`);
+      }
+    }
+
+    if (userSkills.length > 0) {
+      console.log(`  ${style('ℹ', C.cyan)} ${userSkills.length} user-created skill(s) kept: ${userSkills.join(', ')}`);
+    }
+  }
+
+  // 3. Remove statusline
+  if (fs.existsSync(statuslineDest)) {
+    if (opts.yes || await ask('Remove status line?', true)) {
+      fs.unlinkSync(statuslineDest);
+
+      // Remove statusLine from settings
+      const settings = readJson(settingsPath);
+      if (settings && (settings as Record<string, unknown>).statusLine) {
+        delete (settings as Record<string, unknown>).statusLine;
+        writeJson(settingsPath, settings);
+      }
+      console.log(`  ${style('✓', C.green)} Status line removed`);
+    } else {
+      console.log(`  ${style('⏭', C.gray)}  Status line skipped`);
+    }
+  }
+
+  // 4. Clean settings (permissions, plugins) — ask because user may have customized
+  const settings = readJson(settingsPath);
+  if (settings) {
+    const modified = { ...(settings as Record<string, unknown>) };
+    let changed = false;
+
+    if (modified.permissions) {
+      if (opts.yes || await ask('Reset permissions to empty?', false)) {
+        delete modified.permissions;
+        changed = true;
+        console.log(`  ${style('✓', C.green)} Permissions removed`);
+      } else {
+        console.log(`  ${style('⏭', C.gray)}  Permissions kept (user may have customized)`);
+      }
+    }
+
+    if (modified.enabledPlugins) {
+      if (opts.yes || await ask('Remove plugin list? (plugins stay installed)', false)) {
+        delete modified.enabledPlugins;
+        delete modified.extraKnownMarketplaces;
+        changed = true;
+        console.log(`  ${style('✓', C.green)} Plugin list removed`);
+      } else {
+        console.log(`  ${style('⏭', C.gray)}  Plugins kept`);
+      }
+    }
+
+    if (changed) writeJson(settingsPath, modified);
+  }
+
+  console.log(`\n  ${style('✓', C.green)} ${style('Uninstall complete', C.bold)}`);
+  console.log(`  ${style('Note:', C.gray)} settings.json and ~/.claude/ directory are preserved.\n`);
 }

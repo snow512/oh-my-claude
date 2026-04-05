@@ -67,7 +67,9 @@ function showHelp() {
     console.log(`    ${(0, ui_1.style)('backup', c)}            Snapshot ~/.claude/ to .tar.gz`);
     console.log(`      ${(0, ui_1.style)('--output=<file>', g)} Output file path`);
     console.log(`    ${(0, ui_1.style)('restore', c)} <file>    Restore from backup`);
-    console.log(`      ${(0, ui_1.style)('--force, -f', g)}     Skip backup of current settings\n`);
+    console.log(`      ${(0, ui_1.style)('--force, -f', g)}     Skip backup of current settings`);
+    console.log(`    ${(0, ui_1.style)('uninstall', c)}         Remove oh-my-claude (skills, settings, CLAUDE.md)`);
+    console.log(`      ${(0, ui_1.style)('--yes, -y', g)}       Remove everything without asking\n`);
     console.log(`  ${(0, ui_1.style)('Global Options', b)}`);
     console.log(`    ${(0, ui_1.style)('--help, -h', c)}        Show this help message`);
     console.log(`    ${(0, ui_1.style)('--version', c)}         Show version\n`);
@@ -111,6 +113,9 @@ switch (command) {
         break;
     case 'resume':
         (0, installer_1.runResume)(subcommand, opts);
+        break;
+    case 'uninstall':
+        (0, installer_1.runUninstall)(opts);
         break;
     case '--version':
         showVersion();
