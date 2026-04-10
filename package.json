@@ -1,5 +1,5 @@
 {
-  "name": "claude-up",
+  "name": "@snow512/claude-up",
   "version": "0.1.0-beta",
   "description": "Bootstrap and manage your Claude Code environment — npm CLI + Claude plugin hybrid",
   "author": "snow512",
@@ -41,10 +41,13 @@
     "test": "tsc -p tsconfig.test.json && node --test dist-test/tests/*.test.js",
     "prepublishOnly": "npm test && tsc"
   },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/snow512/claude-up.git"
+    "url": "git+https://github.com/snow512/claude-up.git"
   },
   "devDependencies": {
     "@types/node": "^25.5.2",
