@@ -1,0 +1,2 @@
+bin/*.js linguist-generated=true
+dist-test/**/*.js linguist-generated=true
