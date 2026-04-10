@@ -667,7 +667,7 @@ function runDoctor(opts = {}) {
                     return sum;
                 }
             }, 0);
-            warn(`${backups.length} backup files (${Math.round(totalKB / 1024)}KB) in ~/.claude/ — run "rm ~/.claude/*.bak.*" to clean up`);
+            warn(`${backups.length} cup backup files (${Math.round(totalKB / 1024)}KB) — created by "cup init/update" before overwriting settings. Run "rm ~/.claude/*.bak.*" to clean up`);
             detail(backups);
         }
     }

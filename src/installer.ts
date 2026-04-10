@@ -626,7 +626,7 @@ export function runDoctor(opts: Opts = {}): void {
       const totalKB = backups.reduce((sum, f) => {
         try { return sum + fs.statSync(path.join(CLAUDE_DIR, f)).size; } catch { return sum; }
       }, 0);
-      warn(`${backups.length} backup files (${Math.round(totalKB / 1024)}KB) in ~/.claude/ — run "rm ~/.claude/*.bak.*" to clean up`);
+      warn(`${backups.length} cup backup files (${Math.round(totalKB / 1024)}KB) — created by "cup init/update" before overwriting settings. Run "rm ~/.claude/*.bak.*" to clean up`);
       detail(backups);
     }
   } catch {}
