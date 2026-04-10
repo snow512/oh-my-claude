@@ -3,12 +3,14 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const installer_1 = require("./installer");
 const ui_1 = require("./ui");
+const sync_1 = require("./sync");
 // --- Parse args ---
 const args = process.argv.slice(2);
 const flags = new Set(args.filter(a => a.startsWith('-') && !a.includes('=')));
 const command = args.find(a => !a.startsWith('-'))
     || (flags.has('--version') ? '--version' : flags.has('-h') || flags.has('--help') ? '--help' : undefined);
 const subcommand = args.filter(a => !a.startsWith('-'))[1];
+const restArgs = args.filter(a => !a.startsWith('-')).slice(1);
 const getFlag = (name) => {
     const val = args.find(a => a.startsWith(`--${name}=`));
     return val ? val.split('=')[1] : null;
@@ -70,6 +72,13 @@ function showHelp() {
     console.log(`      ${(0, ui_1.style)('--force, -f', g)}     Skip backup of current settings`);
     console.log(`    ${(0, ui_1.style)('uninstall', c)}         Remove oh-my-claude (skills, settings, CLAUDE.md)`);
     console.log(`      ${(0, ui_1.style)('--yes, -y', g)}       Remove everything without asking\n`);
+    console.log(`  ${(0, ui_1.style)('Sync', b)}`);
+    console.log(`    ${(0, ui_1.style)('login', c)}             Set up GitHub token for cloud sync`);
+    console.log(`      ${(0, ui_1.style)('--force, -f', g)}     Replace existing token`);
+    console.log(`    ${(0, ui_1.style)('push', c)} [skills...]   Upload settings & skills to cloud`);
+    console.log(`      ${(0, ui_1.style)('--yes, -y', g)}       Push without asking`);
+    console.log(`    ${(0, ui_1.style)('pull', c)}              Download settings & skills from cloud`);
+    console.log(`      ${(0, ui_1.style)('--yes, -y', g)}       Apply all without asking\n`);
     console.log(`  ${(0, ui_1.style)('Global Options', b)}`);
     console.log(`    ${(0, ui_1.style)('--help, -h', c)}        Show this help message`);
     console.log(`    ${(0, ui_1.style)('--version', c)}         Show version\n`);
@@ -116,6 +125,15 @@ switch (command) {
         break;
     case 'uninstall':
         (0, installer_1.runUninstall)(opts);
+        break;
+    case 'login':
+        (0, sync_1.runLogin)(opts);
+        break;
+    case 'push':
+        (0, sync_1.runPush)(restArgs.length > 0 ? restArgs : undefined, opts);
+        break;
+    case 'pull':
+        (0, sync_1.runPull)(opts);
         break;
     case '--version':
         showVersion();

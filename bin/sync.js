@@ -40,6 +40,7 @@ const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const https = __importStar(require("https"));
 const readline = __importStar(require("readline"));
+const stream_1 = require("stream");
 const installer_1 = require("./installer");
 const ui_1 = require("./ui");
 // --- Constants ---
@@ -48,6 +49,10 @@ const GIST_PREFIX = 'omc-skill--';
 const MANIFEST_FILE = 'omc-manifest.json';
 const SETTINGS_FILE = 'omc-settings.json';
 const CLAUDE_MD_FILE = 'omc-claude-md.md';
+// --- Security: Skill name validation ---
+function isValidSkillName(name) {
+    return /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(name) && !name.includes('..');
+}
 // --- Auth helpers ---
 function loadAuth() {
     try {
@@ -123,18 +128,6 @@ function detectLang() {
         return 'en';
     }
 }
-// --- Backup helper ---
-function backup(filePath) {
-    try {
-        const ts = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
-        const bakPath = `${filePath}.bak.${ts}`;
-        fs.copyFileSync(filePath, bakPath);
-        return bakPath;
-    }
-    catch {
-        return null;
-    }
-}
 // --- Manifest building ---
 function buildManifest() {
     const repoSkillsDir = path.join(installer_1.PACKAGE_ROOT, 'user-skills');
@@ -144,7 +137,14 @@ function buildManifest() {
     try {
         repoSkills = fs.readdirSync(repoSkillsDir, { withFileTypes: true })
             .filter(e => e.isDirectory())
-            .map(e => e.name);
+            .map(e => e.name)
+            .filter(name => {
+            if (!isValidSkillName(name)) {
+                console.warn(`  ${(0, ui_1.style)('⚠', ui_1.C.yellow)} Skipping invalid skill name in repo: ${name}`);
+                return false;
+            }
+            return true;
+        });
     }
     catch { /* no repo skills dir */ }
     // Get skill names from local
@@ -152,7 +152,14 @@ function buildManifest() {
     try {
         localSkills = fs.readdirSync(localSkillsDir, { withFileTypes: true })
             .filter(e => e.isDirectory())
-            .map(e => e.name);
+            .map(e => e.name)
+            .filter(name => {
+            if (!isValidSkillName(name)) {
+                console.warn(`  ${(0, ui_1.style)('⚠', ui_1.C.yellow)} Skipping invalid skill name in local: ${name}`);
+                return false;
+            }
+            return true;
+        });
     }
     catch { /* no local skills dir */ }
     const repoSet = new Set(repoSkills);
@@ -241,7 +248,9 @@ async function runLogin(opts) {
     (0, ui_1.renderBanner)();
     const existing = loadAuth();
     if (existing && !opts.force) {
-        const masked = existing.token.slice(0, 4) + '****' + existing.token.slice(-4);
+        const masked = existing.token.length > 8
+            ? existing.token.slice(0, 4) + '****' + existing.token.slice(-4)
+            : existing.token.slice(0, 2) + '****';
         console.log(`  ${(0, ui_1.style)('Current token:', ui_1.C.bold)} ${(0, ui_1.style)(masked, ui_1.C.gray)}`);
         const replace = await (0, ui_1.ask)('Replace existing token?', false);
         if (!replace) {
@@ -249,22 +258,32 @@ async function runLogin(opts) {
             return;
         }
     }
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-    const token = await new Promise((resolve) => {
-        rl.question(`  ${(0, ui_1.style)('GitHub Personal Access Token', ui_1.C.bold)} (needs gist scope): `, (answer) => {
-            rl.close();
-            resolve(answer.trim());
-        });
+    // Hidden token input
+    const mutableStdout = new stream_1.Writable({
+        write: (_chunk, _encoding, callback) => { callback(); }
     });
+    process.stdout.write(`  ${(0, ui_1.style)('Token:', ui_1.C.cyan)} `);
+    const rl = readline.createInterface({ input: process.stdin, output: mutableStdout, terminal: true });
+    const token = await new Promise((resolve) => {
+        rl.question('', (answer) => { rl.close(); resolve(answer.trim()); });
+    });
+    console.log(''); // newline after hidden input
     if (!token) {
         console.log(`  ${(0, ui_1.style)('✗', ui_1.C.red)} No token provided.\n`);
         process.exit(1);
     }
-    await (0, ui_1.progressLine)('Validating token', async () => {
-        const user = await githubApi('GET', '/user', token);
-        console.log(''); // newline after spinner clears
-        console.log(`  ${(0, ui_1.style)('✓', ui_1.C.green)} Authenticated as ${(0, ui_1.style)(user.login, ui_1.C.cyan)}`);
-    });
+    try {
+        await (0, ui_1.progressLine)('Validating token', async () => {
+            const user = await githubApi('GET', '/user', token);
+            console.log(''); // newline after spinner clears
+            console.log(`  ${(0, ui_1.style)('✓', ui_1.C.green)} Authenticated as ${(0, ui_1.style)(user.login, ui_1.C.cyan)}`);
+        });
+    }
+    catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.log(`  ${(0, ui_1.style)('✗', ui_1.C.red)} Token validation failed: ${msg}\n`);
+        process.exit(1);
+    }
     const auth = { token };
     const currentAuth = loadAuth();
     if (currentAuth?.gistId)
@@ -335,18 +354,25 @@ async function runPush(args, opts) {
         public: false,
         files: gistFiles,
     };
-    let gistUrl;
-    if (auth.gistId) {
-        const result = await (0, ui_1.progressLine)('Updating Gist', () => githubApi('PATCH', `/gists/${auth.gistId}`, auth.token, payload));
-        gistUrl = result.html_url;
+    try {
+        let gistUrl;
+        if (auth.gistId) {
+            const result = await (0, ui_1.progressLine)('Updating Gist', () => githubApi('PATCH', `/gists/${auth.gistId}`, auth.token, payload));
+            gistUrl = result.html_url;
+        }
+        else {
+            const result = await (0, ui_1.progressLine)('Creating Gist', () => githubApi('POST', '/gists', auth.token, payload));
+            gistUrl = result.html_url;
+            auth.gistId = result.id;
+            saveAuth(auth);
+        }
+        console.log(`  ${(0, ui_1.style)('✓', ui_1.C.green)} Pushed to Gist: ${(0, ui_1.style)(gistUrl, ui_1.C.cyan)}\n`);
     }
-    else {
-        const result = await (0, ui_1.progressLine)('Creating Gist', () => githubApi('POST', '/gists', auth.token, payload));
-        gistUrl = result.html_url;
-        auth.gistId = result.id;
-        saveAuth(auth);
+    catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.log(`  ${(0, ui_1.style)('✗', ui_1.C.red)} Push failed: ${msg}\n`);
+        process.exit(1);
     }
-    console.log(`  ${(0, ui_1.style)('✓', ui_1.C.green)} Pushed to Gist: ${(0, ui_1.style)(gistUrl, ui_1.C.cyan)}\n`);
 }
 // --- Pull command ---
 async function runPull(opts) {
@@ -360,14 +386,49 @@ async function runPull(opts) {
         console.log(`  ${(0, ui_1.style)('✗', ui_1.C.red)} No Gist ID found. Run: ${(0, ui_1.style)('omc push', ui_1.C.cyan)} first.\n`);
         process.exit(1);
     }
-    const gistData = await (0, ui_1.progressLine)('Fetching Gist', () => githubApi('GET', `/gists/${auth.gistId}`, auth.token));
+    let gistData;
+    try {
+        gistData = await (0, ui_1.progressLine)('Fetching Gist', () => githubApi('GET', `/gists/${auth.gistId}`, auth.token));
+    }
+    catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.log(`  ${(0, ui_1.style)('✗', ui_1.C.red)} Pull failed: ${msg}\n`);
+        process.exit(1);
+        return;
+    }
     // Parse manifest
     const manifestFile = gistData.files[MANIFEST_FILE];
     if (!manifestFile) {
         console.log(`  ${(0, ui_1.style)('✗', ui_1.C.red)} No manifest found in Gist.\n`);
         process.exit(1);
+        return;
     }
     const manifest = JSON.parse(manifestFile.content);
+    // Validate and filter skill names from manifest
+    const filterSkillNames = (names, label) => names.filter(name => {
+        if (!isValidSkillName(name)) {
+            console.warn(`  ${(0, ui_1.style)('⚠', ui_1.C.yellow)} Skipping invalid skill name in ${label}: ${name}`);
+            return false;
+        }
+        return true;
+    });
+    manifest.skills.removed = filterSkillNames(manifest.skills.removed, 'removed');
+    manifest.skills.modified = filterSkillNames(manifest.skills.modified, 'modified');
+    manifest.skills.custom = filterSkillNames(manifest.skills.custom, 'custom');
+    // Also validate gist file keys for skill files
+    const validGistSkillFiles = new Set(Object.keys(gistData.files)
+        .filter(key => key.startsWith(GIST_PREFIX))
+        .map(key => key.slice(GIST_PREFIX.length, -'.md'.length))
+        .filter(name => {
+        if (!isValidSkillName(name)) {
+            console.warn(`  ${(0, ui_1.style)('⚠', ui_1.C.yellow)} Skipping invalid skill filename in Gist: ${name}`);
+            return false;
+        }
+        return true;
+    }));
+    // Only keep manifest entries that also have valid gist keys
+    manifest.skills.modified = manifest.skills.modified.filter(n => validGistSkillFiles.has(n) || true); // modified names validated above
+    manifest.skills.custom = manifest.skills.custom.filter(n => validGistSkillFiles.has(n) || true); // custom names validated above
     console.log('');
     console.log(`  ${(0, ui_1.style)('Remote manifest:', ui_1.C.bold)} ${(0, ui_1.style)(manifest.timestamp, ui_1.C.gray)}`);
     console.log(`    ${(0, ui_1.style)('Modified:', ui_1.C.yellow)}  ${manifest.skills.modified.length}`);
@@ -384,7 +445,7 @@ async function runPull(opts) {
             const remoteSettings = JSON.parse(settingsFile.content);
             // Backup first
             if (fs.existsSync(settingsPath)) {
-                backup(settingsPath);
+                (0, installer_1.backup)(settingsPath);
             }
             // Merge: remote keys overwrite, local-only keys preserved
             const merged = { ...localSettings, ...remoteSettings };
@@ -399,7 +460,7 @@ async function runPull(opts) {
         if (doIt) {
             const claudeMdPath = path.join(installer_1.CLAUDE_DIR, 'CLAUDE.md');
             if (fs.existsSync(claudeMdPath))
-                backup(claudeMdPath);
+                (0, installer_1.backup)(claudeMdPath);
             applyOmcBlock(claudeMdPath, claudeMdFile.content);
             console.log(`  ${(0, ui_1.style)('✓', ui_1.C.green)} CLAUDE.md omc block applied.`);
         }

@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.PACKAGE_ROOT = exports.CLAUDE_DIR = void 0;
 exports.readJson = readJson;
 exports.writeJson = writeJson;
+exports.backup = backup;
 exports.isDirChanged = isDirChanged;
 exports.runInit = runInit;
 exports.runInstall = runInstall;

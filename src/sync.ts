@@ -29,11 +29,27 @@ const GIST_PREFIX = 'omc-skill--';
 const MANIFEST_FILE = 'omc-manifest.json';
 const SETTINGS_FILE = 'omc-settings.json';
 const CLAUDE_MD_FILE = 'omc-claude-md.md';
-
-// --- Security: Skill name validation ---
+const OMC_START = '<!-- <omc>';
+const OMC_END = '<!-- </omc> -->';
+const SYNC_SETTINGS_KEYS = ['permissions', 'enabledPlugins', 'extraKnownMarketplaces'];
 
 function isValidSkillName(name: string): boolean {
   return /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(name) && !name.includes('..');
+}
+
+function readValidSkillNames(dir: string): string[] {
+  try {
+    return fs.readdirSync(dir, { withFileTypes: true })
+      .filter(e => e.isDirectory())
+      .map(e => e.name)
+      .filter(isValidSkillName);
+  } catch { return []; }
+}
+
+function collectSkillContent(skillDir: string, name: string, dest: Record<string, string>): void {
+  try {
+    dest[`${GIST_PREFIX}${name}.md`] = fs.readFileSync(path.join(skillDir, 'SKILL.md'), 'utf-8');
+  } catch {}
 }
 
 // --- Auth helpers ---
@@ -78,9 +94,10 @@ function githubApi<T = GistResponse>(
     };
 
     const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', (chunk) => { data += chunk; });
+      const chunks: Buffer[] = [];
+      res.on('data', (chunk: Buffer) => { chunks.push(chunk); });
       res.on('end', () => {
+        const data = Buffer.concat(chunks).toString();
         const statusCode = res.statusCode ?? 0;
         if (statusCode >= 200 && statusCode < 300) {
           try {
@@ -110,7 +127,6 @@ function detectLang(): string {
     if (!firstDir) return 'en';
     const skillMd = path.join(skillsDir, firstDir.name, 'SKILL.md');
     const content = fs.readFileSync(skillMd, 'utf-8');
-    // Check for Korean characters (Hangul Unicode range)
     if (/[\uAC00-\uD7A3\u1100-\u11FF\u3130-\u318F]/.test(content)) return 'ko';
     return 'en';
   } catch {
@@ -124,36 +140,8 @@ function buildManifest(): { manifest: SyncManifest; modifiedFiles: Record<string
   const repoSkillsDir = path.join(PACKAGE_ROOT, 'user-skills');
   const localSkillsDir = path.join(CLAUDE_DIR, 'skills');
 
-  // Get skill names from repo
-  let repoSkills: string[] = [];
-  try {
-    repoSkills = fs.readdirSync(repoSkillsDir, { withFileTypes: true })
-      .filter(e => e.isDirectory())
-      .map(e => e.name)
-      .filter(name => {
-        if (!isValidSkillName(name)) {
-          console.warn(`  ${style('⚠', C.yellow)} Skipping invalid skill name in repo: ${name}`);
-          return false;
-        }
-        return true;
-      });
-  } catch { /* no repo skills dir */ }
-
-  // Get skill names from local
-  let localSkills: string[] = [];
-  try {
-    localSkills = fs.readdirSync(localSkillsDir, { withFileTypes: true })
-      .filter(e => e.isDirectory())
-      .map(e => e.name)
-      .filter(name => {
-        if (!isValidSkillName(name)) {
-          console.warn(`  ${style('⚠', C.yellow)} Skipping invalid skill name in local: ${name}`);
-          return false;
-        }
-        return true;
-      });
-  } catch { /* no local skills dir */ }
-
+  const repoSkills = readValidSkillNames(repoSkillsDir);
+  const localSkills = readValidSkillNames(localSkillsDir);
   const repoSet = new Set(repoSkills);
   const localSet = new Set(localSkills);
 
@@ -163,48 +151,33 @@ function buildManifest(): { manifest: SyncManifest; modifiedFiles: Record<string
   const custom: string[] = [];
   const modifiedFiles: Record<string, string> = {};
 
-  // Skills in repo
   for (const name of repoSkills) {
-    const repoDir = path.join(repoSkillsDir, name);
-    const localDir = path.join(localSkillsDir, name);
-
     if (!localSet.has(name)) {
-      // In repo but not local => removed
       removed.push(name);
-    } else if (isDirChanged(repoDir, localDir)) {
-      // In both but changed => modified
+    } else if (isDirChanged(path.join(repoSkillsDir, name), path.join(localSkillsDir, name))) {
       modified.push(name);
-      try {
-        const content = fs.readFileSync(path.join(localDir, 'SKILL.md'), 'utf-8');
-        modifiedFiles[`${GIST_PREFIX}${name}.md`] = content;
-      } catch { /* skip if unreadable */ }
+      collectSkillContent(path.join(localSkillsDir, name), name, modifiedFiles);
     } else {
-      // Unchanged
       installed.push(name);
     }
   }
 
-  // Skills only in local (custom)
   for (const name of localSkills) {
     if (!repoSet.has(name)) {
       custom.push(name);
-      try {
-        const content = fs.readFileSync(path.join(localSkillsDir, name, 'SKILL.md'), 'utf-8');
-        modifiedFiles[`${GIST_PREFIX}${name}.md`] = content;
-      } catch { /* skip if unreadable */ }
+      collectSkillContent(path.join(localSkillsDir, name), name, modifiedFiles);
     }
   }
 
-  const lang = detectLang();
-
-  const manifest: SyncManifest = {
-    version: '1',
-    timestamp: new Date().toISOString(),
-    skills: { installed, removed, modified, custom },
-    lang,
+  return {
+    manifest: {
+      version: '1',
+      timestamp: new Date().toISOString(),
+      skills: { installed, removed, modified, custom },
+      lang: detectLang(),
+    },
+    modifiedFiles,
   };
-
-  return { manifest, modifiedFiles };
 }
 
 // --- Extract CLAUDE.md omc block ---
@@ -212,26 +185,24 @@ function buildManifest(): { manifest: SyncManifest; modifiedFiles: Record<string
 function extractOmcBlock(claudeMdPath: string): string | null {
   try {
     const content = fs.readFileSync(claudeMdPath, 'utf-8');
-    const start = content.indexOf('<!-- omc:start -->');
-    const end = content.indexOf('<!-- omc:end -->');
+    const start = content.indexOf(OMC_START);
+    const end = content.indexOf(OMC_END);
     if (start === -1 || end === -1) return null;
-    return content.slice(start, end + '<!-- omc:end -->'.length);
+    return content.slice(start, end + OMC_END.length);
   } catch {
     return null;
   }
 }
 
-// --- Apply omc block to CLAUDE.md ---
-
 function applyOmcBlock(claudeMdPath: string, block: string): void {
   let content = '';
-  try { content = fs.readFileSync(claudeMdPath, 'utf-8'); } catch { /* new file */ }
+  try { content = fs.readFileSync(claudeMdPath, 'utf-8'); } catch {}
 
-  const start = content.indexOf('<!-- omc:start -->');
-  const end = content.indexOf('<!-- omc:end -->');
+  const start = content.indexOf(OMC_START);
+  const end = content.indexOf(OMC_END);
 
   if (start !== -1 && end !== -1) {
-    content = content.slice(0, start) + block + content.slice(end + '<!-- omc:end -->'.length);
+    content = content.slice(0, start) + block + content.slice(end + OMC_END.length);
   } else {
     content = content + '\n\n' + block + '\n';
   }
@@ -338,7 +309,7 @@ export async function runPush(args: string[] | undefined, opts: Opts): Promise<v
   const settingsPath = path.join(CLAUDE_DIR, 'settings.json');
   const rawSettings = readJson(settingsPath) || {};
   const syncSettings: Record<string, unknown> = {};
-  for (const key of ['permissions', 'enabledPlugins', 'extraKnownMarketplaces']) {
+  for (const key of SYNC_SETTINGS_KEYS) {
     if (rawSettings[key] !== undefined) syncSettings[key] = rawSettings[key];
   }
 
@@ -446,24 +417,6 @@ export async function runPull(opts: Opts): Promise<void> {
   manifest.skills.removed = filterSkillNames(manifest.skills.removed, 'removed');
   manifest.skills.modified = filterSkillNames(manifest.skills.modified, 'modified');
   manifest.skills.custom = filterSkillNames(manifest.skills.custom, 'custom');
-
-  // Also validate gist file keys for skill files
-  const validGistSkillFiles = new Set(
-    Object.keys(gistData.files)
-      .filter(key => key.startsWith(GIST_PREFIX))
-      .map(key => key.slice(GIST_PREFIX.length, -'.md'.length))
-      .filter(name => {
-        if (!isValidSkillName(name)) {
-          console.warn(`  ${style('⚠', C.yellow)} Skipping invalid skill filename in Gist: ${name}`);
-          return false;
-        }
-        return true;
-      })
-  );
-
-  // Only keep manifest entries that also have valid gist keys
-  manifest.skills.modified = manifest.skills.modified.filter(n => validGistSkillFiles.has(n) || true); // modified names validated above
-  manifest.skills.custom = manifest.skills.custom.filter(n => validGistSkillFiles.has(n) || true);     // custom names validated above
 
   console.log('');
   console.log(`  ${style('Remote manifest:', C.bold)} ${style(manifest.timestamp, C.gray)}`);
