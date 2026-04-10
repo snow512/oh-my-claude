@@ -2,7 +2,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as https from 'https';
 import * as readline from 'readline';
-import { CLAUDE_DIR, PACKAGE_ROOT, readJson, writeJson, isDirChanged } from './installer';
+import { Writable } from 'stream';
+import { CLAUDE_DIR, PACKAGE_ROOT, readJson, writeJson, isDirChanged, backup } from './installer';
 import { renderBanner, progressLine, ask, C, style } from './ui';
 import type { Opts } from './installer';
 
@@ -29,6 +30,12 @@ const MANIFEST_FILE = 'omc-manifest.json';
 const SETTINGS_FILE = 'omc-settings.json';
 const CLAUDE_MD_FILE = 'omc-claude-md.md';
 
+// --- Security: Skill name validation ---
+
+function isValidSkillName(name: string): boolean {
+  return /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(name) && !name.includes('..');
+}
+
 // --- Auth helpers ---
 
 function loadAuth(): AuthData | null {
@@ -48,12 +55,12 @@ function saveAuth(data: AuthData): void {
 
 // --- GitHub API client ---
 
-function githubApi(
+function githubApi<T = GistResponse>(
   method: string,
   endpoint: string,
   token: string,
-  body?: Record<string, unknown>
-): Promise<GistResponse> {
+  body?: unknown
+): Promise<T> {
   return new Promise((resolve, reject) => {
     const payload = body ? JSON.stringify(body) : undefined;
     const options: https.RequestOptions = {
@@ -77,7 +84,7 @@ function githubApi(
         const statusCode = res.statusCode ?? 0;
         if (statusCode >= 200 && statusCode < 300) {
           try {
-            resolve(JSON.parse(data) as GistResponse);
+            resolve(JSON.parse(data) as T);
           } catch {
             reject(new Error(`Failed to parse response: ${data}`));
           }
@@ -111,19 +118,6 @@ function detectLang(): string {
   }
 }
 
-// --- Backup helper ---
-
-function backup(filePath: string): string | null {
-  try {
-    const ts = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
-    const bakPath = `${filePath}.bak.${ts}`;
-    fs.copyFileSync(filePath, bakPath);
-    return bakPath;
-  } catch {
-    return null;
-  }
-}
-
 // --- Manifest building ---
 
 function buildManifest(): { manifest: SyncManifest; modifiedFiles: Record<string, string> } {
@@ -135,7 +129,14 @@ function buildManifest(): { manifest: SyncManifest; modifiedFiles: Record<string
   try {
     repoSkills = fs.readdirSync(repoSkillsDir, { withFileTypes: true })
       .filter(e => e.isDirectory())
-      .map(e => e.name);
+      .map(e => e.name)
+      .filter(name => {
+        if (!isValidSkillName(name)) {
+          console.warn(`  ${style('⚠', C.yellow)} Skipping invalid skill name in repo: ${name}`);
+          return false;
+        }
+        return true;
+      });
   } catch { /* no repo skills dir */ }
 
   // Get skill names from local
@@ -143,7 +144,14 @@ function buildManifest(): { manifest: SyncManifest; modifiedFiles: Record<string
   try {
     localSkills = fs.readdirSync(localSkillsDir, { withFileTypes: true })
       .filter(e => e.isDirectory())
-      .map(e => e.name);
+      .map(e => e.name)
+      .filter(name => {
+        if (!isValidSkillName(name)) {
+          console.warn(`  ${style('⚠', C.yellow)} Skipping invalid skill name in local: ${name}`);
+          return false;
+        }
+        return true;
+      });
   } catch { /* no local skills dir */ }
 
   const repoSet = new Set(repoSkills);
@@ -239,7 +247,9 @@ export async function runLogin(opts: Opts): Promise<void> {
 
   const existing = loadAuth();
   if (existing && !opts.force) {
-    const masked = existing.token.slice(0, 4) + '****' + existing.token.slice(-4);
+    const masked = existing.token.length > 8
+      ? existing.token.slice(0, 4) + '****' + existing.token.slice(-4)
+      : existing.token.slice(0, 2) + '****';
     console.log(`  ${style('Current token:', C.bold)} ${style(masked, C.gray)}`);
     const replace = await ask('Replace existing token?', false);
     if (!replace) {
@@ -248,24 +258,33 @@ export async function runLogin(opts: Opts): Promise<void> {
     }
   }
 
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  const token = await new Promise<string>((resolve) => {
-    rl.question(`  ${style('GitHub Personal Access Token', C.bold)} (needs gist scope): `, (answer) => {
-      rl.close();
-      resolve(answer.trim());
-    });
+  // Hidden token input
+  const mutableStdout = new Writable({
+    write: (_chunk: Buffer, _encoding: string, callback: () => void) => { callback(); }
   });
+  process.stdout.write(`  ${style('Token:', C.cyan)} `);
+  const rl = readline.createInterface({ input: process.stdin, output: mutableStdout, terminal: true });
+  const token = await new Promise<string>((resolve) => {
+    rl.question('', (answer: string) => { rl.close(); resolve(answer.trim()); });
+  });
+  console.log(''); // newline after hidden input
 
   if (!token) {
     console.log(`  ${style('✗', C.red)} No token provided.\n`);
     process.exit(1);
   }
 
-  await progressLine('Validating token', async () => {
-    const user = await githubApi('GET', '/user', token) as unknown as { login: string };
-    console.log(''); // newline after spinner clears
-    console.log(`  ${style('✓', C.green)} Authenticated as ${style(user.login, C.cyan)}`);
-  });
+  try {
+    await progressLine('Validating token', async () => {
+      const user = await githubApi<{ login: string }>('GET', '/user', token);
+      console.log(''); // newline after spinner clears
+      console.log(`  ${style('✓', C.green)} Authenticated as ${style(user.login, C.cyan)}`);
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.log(`  ${style('✗', C.red)} Token validation failed: ${msg}\n`);
+    process.exit(1);
+  }
 
   const auth: AuthData = { token };
   const currentAuth = loadAuth();
@@ -354,22 +373,28 @@ export async function runPush(args: string[] | undefined, opts: Opts): Promise<v
     files: gistFiles,
   };
 
-  let gistUrl: string;
-  if (auth.gistId) {
-    const result = await progressLine('Updating Gist', () =>
-      githubApi('PATCH', `/gists/${auth.gistId}`, auth.token, payload as unknown as Record<string, unknown>)
-    );
-    gistUrl = result.html_url;
-  } else {
-    const result = await progressLine('Creating Gist', () =>
-      githubApi('POST', '/gists', auth.token, payload as unknown as Record<string, unknown>)
-    );
-    gistUrl = result.html_url;
-    auth.gistId = result.id;
-    saveAuth(auth);
-  }
+  try {
+    let gistUrl: string;
+    if (auth.gistId) {
+      const result = await progressLine('Updating Gist', () =>
+        githubApi('PATCH', `/gists/${auth.gistId}`, auth.token, payload)
+      );
+      gistUrl = result.html_url;
+    } else {
+      const result = await progressLine('Creating Gist', () =>
+        githubApi('POST', '/gists', auth.token, payload)
+      );
+      gistUrl = result.html_url;
+      auth.gistId = result.id;
+      saveAuth(auth);
+    }
 
-  console.log(`  ${style('✓', C.green)} Pushed to Gist: ${style(gistUrl, C.cyan)}\n`);
+    console.log(`  ${style('✓', C.green)} Pushed to Gist: ${style(gistUrl, C.cyan)}\n`);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.log(`  ${style('✗', C.red)} Push failed: ${msg}\n`);
+    process.exit(1);
+  }
 }
 
 // --- Pull command ---
@@ -387,17 +412,58 @@ export async function runPull(opts: Opts): Promise<void> {
     process.exit(1);
   }
 
-  const gistData = await progressLine('Fetching Gist', () =>
-    githubApi('GET', `/gists/${auth.gistId}`, auth.token)
-  );
+  let gistData: GistResponse;
+  try {
+    gistData = await progressLine('Fetching Gist', () =>
+      githubApi('GET', `/gists/${auth.gistId}`, auth.token)
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.log(`  ${style('✗', C.red)} Pull failed: ${msg}\n`);
+    process.exit(1);
+    return;
+  }
 
   // Parse manifest
   const manifestFile = gistData.files[MANIFEST_FILE];
   if (!manifestFile) {
     console.log(`  ${style('✗', C.red)} No manifest found in Gist.\n`);
     process.exit(1);
+    return;
   }
   const manifest = JSON.parse(manifestFile.content) as SyncManifest;
+
+  // Validate and filter skill names from manifest
+  const filterSkillNames = (names: string[], label: string): string[] =>
+    names.filter(name => {
+      if (!isValidSkillName(name)) {
+        console.warn(`  ${style('⚠', C.yellow)} Skipping invalid skill name in ${label}: ${name}`);
+        return false;
+      }
+      return true;
+    });
+
+  manifest.skills.removed = filterSkillNames(manifest.skills.removed, 'removed');
+  manifest.skills.modified = filterSkillNames(manifest.skills.modified, 'modified');
+  manifest.skills.custom = filterSkillNames(manifest.skills.custom, 'custom');
+
+  // Also validate gist file keys for skill files
+  const validGistSkillFiles = new Set(
+    Object.keys(gistData.files)
+      .filter(key => key.startsWith(GIST_PREFIX))
+      .map(key => key.slice(GIST_PREFIX.length, -'.md'.length))
+      .filter(name => {
+        if (!isValidSkillName(name)) {
+          console.warn(`  ${style('⚠', C.yellow)} Skipping invalid skill filename in Gist: ${name}`);
+          return false;
+        }
+        return true;
+      })
+  );
+
+  // Only keep manifest entries that also have valid gist keys
+  manifest.skills.modified = manifest.skills.modified.filter(n => validGistSkillFiles.has(n) || true); // modified names validated above
+  manifest.skills.custom = manifest.skills.custom.filter(n => validGistSkillFiles.has(n) || true);     // custom names validated above
 
   console.log('');
   console.log(`  ${style('Remote manifest:', C.bold)} ${style(manifest.timestamp, C.gray)}`);

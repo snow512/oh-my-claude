@@ -84,7 +84,7 @@ function copyDirRecursive(src: string, dest: string): number {
   return count;
 }
 
-function backup(filePath: string): string | null {
+export function backup(filePath: string): string | null {
   try {
     const bakPath = `${filePath}.bak.${timestamp()}`;
     fs.copyFileSync(filePath, bakPath);
