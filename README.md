@@ -1,8 +1,8 @@
-# oh-my-claude
+# claude-up
 
 Bootstrap and manage your Claude Code environment — npm CLI + Claude plugin hybrid.
 
-Like oh-my-zsh for your shell, oh-my-claude sets up permissions, plugins, skills, and status line with a single command. Works both from the terminal and inside Claude Code sessions.
+Like oh-my-zsh for your shell, claude-up sets up permissions, plugins, skills, and status line with a single command. Works both from the terminal and inside Claude Code sessions.
 
 ---
 
@@ -10,10 +10,10 @@ Like oh-my-zsh for your shell, oh-my-claude sets up permissions, plugins, skills
 
 ```bash
 # Full interactive setup
-npx oh-my-claude init
+npx claude-up init
 
 # Or use the alias
-omc init
+cup init
 ```
 
 That's it. Answer one question (`Use defaults? [Y/n]`) and everything is configured.
@@ -22,15 +22,15 @@ That's it. Answer one question (`Use defaults? [Y/n]`) and everything is configu
 
 | What you type | What runs |
 |---|---|
-| `클로드초기설정해` / `setup` | `/claude-init` → `omc init` |
-| `프로젝트초기설정해` / `project setup` | `/project-init` → `omc project-init` |
+| `클로드초기설정해` / `setup` | `/claude-init` → `cup init` |
+| `프로젝트초기설정해` / `project setup` | `/project-init` → `cup project-init` |
 
 ---
 
 ## Commands
 
 ```
-Usage: omc <command> [options]
+Usage: cup <command> [options]
 
 Setup
   init                  Interactive environment setup (all-in-one)
@@ -65,11 +65,11 @@ Environment
   restore <file>        Restore from backup
 ```
 
-### Example: `omc init`
+### Example: `cup init`
 
 ```
 ┌─────────────────────────────────────┐
-│  oh-my-claude                       │
+│  claude-up                       │
 │  Claude Code Environment Bootstrap  │
 └─────────────────────────────────────┘
 
@@ -133,14 +133,14 @@ Fork this repo and edit:
 - **`user-skills/`** — add, remove, or edit skills
 - **`statusline-command.sh`** — customize the status bar
 
-Run `omc update` to pull latest changes after editing.
+Run `cup update` to pull latest changes after editing.
 
 ---
 
 ## How It Works
 
 ```
-Terminal: omc init
+Terminal: cup init
     ↓
 CLI (bin/cli.js → installer.js) reads presets + copies skills
     ↓
@@ -150,7 +150,7 @@ Claude session: "클로드초기설정해"
     ↓
 Plugin command: /claude-init
     ↓
-Runs: npx oh-my-claude init (same CLI)
+Runs: npx claude-up init (same CLI)
 ```
 
 The CLI does the actual work. Plugin commands are thin wrappers.

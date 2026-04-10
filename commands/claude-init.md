@@ -7,4 +7,4 @@ user-invocable: true
 
 Sets up the user-level Claude Code environment.
 
-Run `npx oh-my-claude init` and show the result to the user.
+Run `npx claude-up init` and show the result to the user.

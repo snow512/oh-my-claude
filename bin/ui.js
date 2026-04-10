@@ -69,7 +69,7 @@ process.on('exit', exports.cursor.show);
 process.on('SIGINT', () => { exports.cursor.show(); process.exit(0); });
 // --- Banner ---
 function renderBanner() {
-    const title = 'oh-my-claude';
+    const title = 'claude-up';
     const subtitle = 'Claude Code Environment Bootstrap';
     const width = subtitle.length + 4;
     const line = '─'.repeat(width);

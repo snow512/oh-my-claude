@@ -18,7 +18,7 @@
 - Configuration diagnostics (omc doctor)
 - Custom status line support
 - CLI options: --yes, --force, --lang, --output, --json, --verbose, --fork
-- `omc` alias for `oh-my-claude`
+- `omc` alias for `claude-up`
 - TypeScript source with strict mode
 - Unit tests (29 tests, node:test)
 - Zero runtime dependencies (Node.js built-in modules only)

@@ -1,16 +1,16 @@
-# oh-my-claude
+# claude-up
 
 Claude Code environment bootstrap + management tool. npm CLI + Claude plugin hybrid.
 
 ## Project Structure
 
 ```
-oh-my-claude/
+claude-up/
 ├── bin/
 │   ├── cli.js              # CLI entry point (command routing)
 │   ├── ui.js               # UI rendering (colors, banner, checkbox, spinner)
 │   └── installer.js        # init/project-init/clone/backup/restore/status/doctor/update logic
-├── package.json            # npm package (bin: oh-my-claude, omc)
+├── package.json            # npm package (bin: claude-up, cup)
 ├── plugin.json             # Claude plugin manifest
 ├── statusline-command.sh   # Custom status bar script
 ├── presets/
@@ -37,17 +37,17 @@ oh-my-claude/
 ## CLI Commands
 
 ```bash
-omc init              # Interactive environment setup (permissions, plugins, skills, statusline)
-omc project-init      # Set up project-level permissions & skills
-omc update            # Update only changed skills from repo
-omc status            # Show current environment summary
-omc doctor            # Diagnose configuration issues
-omc clone             # Export current ~/.claude/ as portable package
-omc backup            # Snapshot ~/.claude/ to a .tar.gz
-omc restore <file>    # Restore from backup or clone folder
+cup init              # Interactive environment setup (permissions, plugins, skills, statusline)
+cup project-init      # Set up project-level permissions & skills
+cup update            # Update only changed skills from repo
+cup status            # Show current environment summary
+cup doctor            # Diagnose configuration issues
+cup clone             # Export current ~/.claude/ as portable package
+cup backup            # Snapshot ~/.claude/ to a .tar.gz
+cup restore <file>    # Restore from backup or clone folder
 ```
 
-Alias: `oh-my-claude` = `omc`
+Alias: `claude-up` = `cup`
 
 ## User Skills (13)
 
@@ -88,5 +88,5 @@ When a skill needs to remember per-project settings, store in `.claude/settings.
 
 ## GitHub
 
-- Repository: https://github.com/snow512/oh-my-claude
+- Repository: https://github.com/snow512/claude-up
 - npm publish planned (not yet registered)

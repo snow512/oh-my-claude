@@ -7,7 +7,7 @@ user-invocable: false
 
 ## Project Initial Setup
 
-Run the `npx oh-my-claude project-init` command to configure project-level permissions.
+Run the `npx claude-up project-init` command to configure project-level permissions.
 
 ### What It Does
 
@@ -18,5 +18,5 @@ Run the `npx oh-my-claude project-init` command to configure project-level permi
 ### Run
 
 ```bash
-npx oh-my-claude project-init
+npx claude-up project-init
 ```

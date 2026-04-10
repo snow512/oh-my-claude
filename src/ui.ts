@@ -51,7 +51,7 @@ process.on('SIGINT', () => { cursor.show(); process.exit(0); });
 // --- Banner ---
 
 export function renderBanner(): void {
-  const title = 'oh-my-claude';
+  const title = 'claude-up';
   const subtitle = 'Claude Code Environment Bootstrap';
   const width = subtitle.length + 4;
   const line = '─'.repeat(width);

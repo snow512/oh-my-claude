@@ -1,7 +1,7 @@
 
-<!-- <omc> — managed by oh-my-claude, do not edit manually -->
+<!-- <omc> — managed by claude-up, do not edit manually -->
 
-## oh-my-claude Skills
+## claude-up Skills
 
 Available skills (say the trigger phrase to use):
 

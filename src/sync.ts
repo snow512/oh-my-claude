@@ -85,7 +85,7 @@ function githubApi<T = GistResponse>(
       method,
       headers: {
         'Authorization': `Bearer ${token}`,
-        'User-Agent': 'oh-my-claude',
+        'User-Agent': 'claude-up',
         'X-GitHub-Api-Version': '2022-11-28',
         'Accept': 'application/vnd.github+json',
         'Content-Type': 'application/json',
@@ -272,7 +272,7 @@ export async function runPush(args: string[] | undefined, opts: Opts): Promise<v
 
   const auth = loadAuth();
   if (!auth) {
-    console.log(`  ${style('✗', C.red)} Not logged in. Run: ${style('omc login', C.cyan)}\n`);
+    console.log(`  ${style('✗', C.red)} Not logged in. Run: ${style('cup login', C.cyan)}\n`);
     process.exit(1);
   }
 
@@ -339,7 +339,7 @@ export async function runPush(args: string[] | undefined, opts: Opts): Promise<v
   }
 
   const payload: GistPayload = {
-    description: 'oh-my-claude settings sync',
+    description: 'claude-up settings sync',
     public: false,
     files: gistFiles,
   };
@@ -375,11 +375,11 @@ export async function runPull(opts: Opts): Promise<void> {
 
   const auth = loadAuth();
   if (!auth) {
-    console.log(`  ${style('✗', C.red)} Not logged in. Run: ${style('omc login', C.cyan)}\n`);
+    console.log(`  ${style('✗', C.red)} Not logged in. Run: ${style('cup login', C.cyan)}\n`);
     process.exit(1);
   }
   if (!auth.gistId) {
-    console.log(`  ${style('✗', C.red)} No Gist ID found. Run: ${style('omc push', C.cyan)} first.\n`);
+    console.log(`  ${style('✗', C.red)} No Gist ID found. Run: ${style('cup push', C.cyan)} first.\n`);
     process.exit(1);
   }
 

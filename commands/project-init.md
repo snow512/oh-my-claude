@@ -7,4 +7,4 @@ user-invocable: true
 
 Sets up project-level permissions and skills.
 
-Run `npx oh-my-claude project-init` and show the result to the user.
+Run `npx claude-up project-init` and show the result to the user.

@@ -33,7 +33,7 @@ function showHelp() {
     const c = ui_1.C.cyan;
     const b = ui_1.C.bold;
     const g = ui_1.C.gray;
-    console.log(`  ${(0, ui_1.style)('Usage:', b)} omc <command> [options]\n`);
+    console.log(`  ${(0, ui_1.style)('Usage:', b)} cup <command> [options]\n`);
     console.log(`  ${(0, ui_1.style)('Setup', b)}`);
     console.log(`    ${(0, ui_1.style)('init', c)}              Interactive environment setup`);
     console.log(`      ${(0, ui_1.style)('--yes, -y', g)}       Skip prompts, install everything`);
@@ -70,7 +70,7 @@ function showHelp() {
     console.log(`      ${(0, ui_1.style)('--output=<file>', g)} Output file path`);
     console.log(`    ${(0, ui_1.style)('restore', c)} <file>    Restore from backup`);
     console.log(`      ${(0, ui_1.style)('--force, -f', g)}     Skip backup of current settings`);
-    console.log(`    ${(0, ui_1.style)('uninstall', c)}         Remove oh-my-claude (skills, settings, CLAUDE.md)`);
+    console.log(`    ${(0, ui_1.style)('uninstall', c)}         Remove claude-up (skills, settings, CLAUDE.md)`);
     console.log(`      ${(0, ui_1.style)('--yes, -y', g)}       Remove everything without asking\n`);
     console.log(`  ${(0, ui_1.style)('Sync', b)}`);
     console.log(`    ${(0, ui_1.style)('login', c)}             Set up GitHub token for cloud sync`);
@@ -82,11 +82,11 @@ function showHelp() {
     console.log(`  ${(0, ui_1.style)('Global Options', b)}`);
     console.log(`    ${(0, ui_1.style)('--help, -h', c)}        Show this help message`);
     console.log(`    ${(0, ui_1.style)('--version', c)}         Show version\n`);
-    console.log(`  ${(0, ui_1.style)('Alias:', g)} oh-my-claude = omc\n`);
+    console.log(`  ${(0, ui_1.style)('Alias:', g)} claude-up = cup\n`);
 }
 function showVersion() {
     const pkg = require('../package.json');
-    console.log(`oh-my-claude v${pkg.version}`);
+    console.log(`claude-up v${pkg.version}`);
 }
 // --- Route ---
 switch (command) {
@@ -145,6 +145,6 @@ switch (command) {
         break;
     default:
         console.error(`\n  ${(0, ui_1.style)('Unknown command:', ui_1.C.red)} ${command}`);
-        console.error(`  Run ${(0, ui_1.style)('omc --help', ui_1.C.cyan)} for usage\n`);
+        console.error(`  Run ${(0, ui_1.style)('cup --help', ui_1.C.cyan)} for usage\n`);
         process.exit(1);
 }

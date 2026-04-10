@@ -7,7 +7,7 @@ user-invocable: false
 
 ## Claude Code Initial Setup
 
-Run the `npx oh-my-claude init` command to configure the user-level environment.
+Run the `npx claude-up init` command to configure the user-level environment.
 
 ### What It Does
 
@@ -18,5 +18,5 @@ Run the `npx oh-my-claude init` command to configure the user-level environment.
 ### Run
 
 ```bash
-npx oh-my-claude init
+npx claude-up init
 ```

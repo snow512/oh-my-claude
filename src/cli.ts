@@ -41,7 +41,7 @@ function showHelp(): void {
   const b = C.bold;
   const g = C.gray;
 
-  console.log(`  ${style('Usage:', b)} omc <command> [options]\n`);
+  console.log(`  ${style('Usage:', b)} cup <command> [options]\n`);
 
   console.log(`  ${style('Setup', b)}`);
   console.log(`    ${style('init', c)}              Interactive environment setup`);
@@ -82,7 +82,7 @@ function showHelp(): void {
   console.log(`      ${style('--output=<file>', g)} Output file path`);
   console.log(`    ${style('restore', c)} <file>    Restore from backup`);
   console.log(`      ${style('--force, -f', g)}     Skip backup of current settings`);
-  console.log(`    ${style('uninstall', c)}         Remove oh-my-claude (skills, settings, CLAUDE.md)`);
+  console.log(`    ${style('uninstall', c)}         Remove claude-up (skills, settings, CLAUDE.md)`);
   console.log(`      ${style('--yes, -y', g)}       Remove everything without asking\n`);
 
   console.log(`  ${style('Sync', b)}`);
@@ -97,12 +97,12 @@ function showHelp(): void {
   console.log(`    ${style('--help, -h', c)}        Show this help message`);
   console.log(`    ${style('--version', c)}         Show version\n`);
 
-  console.log(`  ${style('Alias:', g)} oh-my-claude = omc\n`);
+  console.log(`  ${style('Alias:', g)} claude-up = cup\n`);
 }
 
 function showVersion(): void {
   const pkg = require('../package.json');
-  console.log(`oh-my-claude v${pkg.version}`);
+  console.log(`claude-up v${pkg.version}`);
 }
 
 // --- Route ---
@@ -128,6 +128,6 @@ switch (command) {
     showHelp(); break;
   default:
     console.error(`\n  ${style('Unknown command:', C.red)} ${command}`);
-    console.error(`  Run ${style('omc --help', C.cyan)} for usage\n`);
+    console.error(`  Run ${style('cup --help', C.cyan)} for usage\n`);
     process.exit(1);
 }

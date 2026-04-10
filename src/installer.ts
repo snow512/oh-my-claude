@@ -388,7 +388,7 @@ export async function runInstall(target: string | undefined, opts: Opts = {}): P
 // --- Project Init ---
 
 export function runProjectInit(opts: Opts = {}): void {
-  console.log('\noh-my-claude project-init\n');
+  console.log('\nclaude-up project-init\n');
   let projectRoot: string;
   try { projectRoot = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf-8' }).trim(); }
   catch { projectRoot = process.cwd(); }
@@ -569,7 +569,7 @@ export function runDoctor(opts: Opts = {}): void {
   const warn = (msg: string): void => { console.log(`  ${style('!', C.yellow)} ${msg}`); warnings++; };
   const fail = (msg: string): void => { console.log(`  ${style('✗', C.red)} ${msg}`); issues++; };
 
-  if (!fs.existsSync(CLAUDE_DIR)) { fail('~/.claude/ not found — run "omc init"'); return; }
+  if (!fs.existsSync(CLAUDE_DIR)) { fail('~/.claude/ not found — run "cup init"'); return; }
   ok('~/.claude/ directory exists');
 
   const settingsPath = path.join(CLAUDE_DIR, 'settings.json');
@@ -797,7 +797,7 @@ export function runSessions(opts: Opts = {}): void {
     console.log(`    ${style(msg, C.dim)}  ${style(sizeStr, C.gray)}`);
   }
 
-  console.log(`\n  ${style('Resume:', C.gray)} ${style('omc resume <id>', C.cyan)}\n`);
+  console.log(`\n  ${style('Resume:', C.gray)} ${style('cup resume <id>', C.cyan)}\n`);
 }
 
 // --- Resume ---
@@ -839,7 +839,7 @@ export async function runResume(sessionId: string | undefined, opts: Opts = {}):
 
 // --- CLAUDE.md management ---
 
-const OMC_START = '<!-- <omc> — managed by oh-my-claude, do not edit manually -->';
+const OMC_START = '<!-- <omc> — managed by claude-up, do not edit manually -->';
 const OMC_END = '<!-- </omc> -->';
 
 function getOmcContent(): string {
@@ -894,7 +894,7 @@ export async function installClaudeMd(useDefaults: boolean): Promise<SummaryResu
   // No omc block yet — append
   let install = useDefaults;
   if (!useDefaults) {
-    install = await ask('Add oh-my-claude section to CLAUDE.md?', true);
+    install = await ask('Add claude-up section to CLAUDE.md?', true);
   }
 
   if (install) {
@@ -910,7 +910,7 @@ export async function installClaudeMd(useDefaults: boolean): Promise<SummaryResu
 
 export async function runUninstall(opts: Opts = {}): Promise<void> {
   renderBanner();
-  console.log(`  ${style('Uninstalling oh-my-claude...', C.bold)}\n`);
+  console.log(`  ${style('Uninstalling claude-up...', C.bold)}\n`);
 
   const settingsPath = path.join(CLAUDE_DIR, 'settings.json');
   const skillsDest = path.join(CLAUDE_DIR, 'skills');
@@ -923,7 +923,7 @@ export async function runUninstall(opts: Opts = {}): Promise<void> {
     if (hasOmcBlock(content)) {
       const cleaned = removeOmcBlock(content);
       if (cleaned !== content) {
-        if (opts.yes || await ask('Remove oh-my-claude section from CLAUDE.md?', true)) {
+        if (opts.yes || await ask('Remove claude-up section from CLAUDE.md?', true)) {
           fs.writeFileSync(claudeMdPath, cleaned + '\n');
           console.log(`  ${style('✓', C.green)} CLAUDE.md — omc section removed`);
         } else {
@@ -951,7 +951,7 @@ export async function runUninstall(opts: Opts = {}): Promise<void> {
     const userSkills = localSkills.filter(s => !repoSkills.has(s));
 
     if (omcSkills.length > 0) {
-      if (opts.yes || await ask(`Remove ${omcSkills.length} oh-my-claude skills?`, true)) {
+      if (opts.yes || await ask(`Remove ${omcSkills.length} claude-up skills?`, true)) {
         for (const name of omcSkills) {
           fs.rmSync(path.join(skillsDest, name), { recursive: true });
         }

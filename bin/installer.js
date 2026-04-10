@@ -392,7 +392,7 @@ async function runInstall(target, opts = {}) {
 }
 // --- Project Init ---
 function runProjectInit(opts = {}) {
-    console.log('\noh-my-claude project-init\n');
+    console.log('\nclaude-up project-init\n');
     let projectRoot;
     try {
         projectRoot = (0, child_process_1.execFileSync)('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf-8' }).trim();
@@ -583,7 +583,7 @@ function runDoctor(opts = {}) {
     const warn = (msg) => { console.log(`  ${(0, ui_1.style)('!', ui_1.C.yellow)} ${msg}`); warnings++; };
     const fail = (msg) => { console.log(`  ${(0, ui_1.style)('✗', ui_1.C.red)} ${msg}`); issues++; };
     if (!fs.existsSync(exports.CLAUDE_DIR)) {
-        fail('~/.claude/ not found — run "omc init"');
+        fail('~/.claude/ not found — run "cup init"');
         return;
     }
     ok('~/.claude/ directory exists');
@@ -869,7 +869,7 @@ function runSessions(opts = {}) {
         console.log(`  ${(0, ui_1.style)(date, ui_1.C.gray)}  ${(0, ui_1.style)(s.id.slice(0, 8), ui_1.C.gray)}  ${(0, ui_1.style)(s.project, ui_1.C.cyan)}`);
         console.log(`    ${(0, ui_1.style)(msg, ui_1.C.dim)}  ${(0, ui_1.style)(sizeStr, ui_1.C.gray)}`);
     }
-    console.log(`\n  ${(0, ui_1.style)('Resume:', ui_1.C.gray)} ${(0, ui_1.style)('omc resume <id>', ui_1.C.cyan)}\n`);
+    console.log(`\n  ${(0, ui_1.style)('Resume:', ui_1.C.gray)} ${(0, ui_1.style)('cup resume <id>', ui_1.C.cyan)}\n`);
 }
 // --- Resume ---
 async function runResume(sessionId, opts = {}) {
@@ -916,7 +916,7 @@ async function runResume(sessionId, opts = {}) {
     }
 }
 // --- CLAUDE.md management ---
-const OMC_START = '<!-- <omc> — managed by oh-my-claude, do not edit manually -->';
+const OMC_START = '<!-- <omc> — managed by claude-up, do not edit manually -->';
 const OMC_END = '<!-- </omc> -->';
 function getOmcContent() {
     const templatePath = path.join(exports.PACKAGE_ROOT, 'presets', 'claude-md.md');
@@ -963,7 +963,7 @@ async function installClaudeMd(useDefaults) {
     // No omc block yet — append
     let install = useDefaults;
     if (!useDefaults) {
-        install = await (0, ui_1.ask)('Add oh-my-claude section to CLAUDE.md?', true);
+        install = await (0, ui_1.ask)('Add claude-up section to CLAUDE.md?', true);
     }
     if (install) {
         const newContent = existing ? existing.trimEnd() + '\n\n' + omcContent + '\n' : omcContent + '\n';
@@ -976,7 +976,7 @@ async function installClaudeMd(useDefaults) {
 // --- Uninstall ---
 async function runUninstall(opts = {}) {
     (0, ui_1.renderBanner)();
-    console.log(`  ${(0, ui_1.style)('Uninstalling oh-my-claude...', ui_1.C.bold)}\n`);
+    console.log(`  ${(0, ui_1.style)('Uninstalling claude-up...', ui_1.C.bold)}\n`);
     const settingsPath = path.join(exports.CLAUDE_DIR, 'settings.json');
     const skillsDest = path.join(exports.CLAUDE_DIR, 'skills');
     const statuslineDest = path.join(exports.CLAUDE_DIR, 'statusline-command.sh');
@@ -987,7 +987,7 @@ async function runUninstall(opts = {}) {
         if (hasOmcBlock(content)) {
             const cleaned = removeOmcBlock(content);
             if (cleaned !== content) {
-                if (opts.yes || await (0, ui_1.ask)('Remove oh-my-claude section from CLAUDE.md?', true)) {
+                if (opts.yes || await (0, ui_1.ask)('Remove claude-up section from CLAUDE.md?', true)) {
                     fs.writeFileSync(claudeMdPath, cleaned + '\n');
                     console.log(`  ${(0, ui_1.style)('✓', ui_1.C.green)} CLAUDE.md — omc section removed`);
                 }
@@ -1014,7 +1014,7 @@ async function runUninstall(opts = {}) {
         const omcSkills = localSkills.filter(s => repoSkills.has(s));
         const userSkills = localSkills.filter(s => !repoSkills.has(s));
         if (omcSkills.length > 0) {
-            if (opts.yes || await (0, ui_1.ask)(`Remove ${omcSkills.length} oh-my-claude skills?`, true)) {
+            if (opts.yes || await (0, ui_1.ask)(`Remove ${omcSkills.length} claude-up skills?`, true)) {
                 for (const name of omcSkills) {
                     fs.rmSync(path.join(skillsDest, name), { recursive: true });
                 }
