@@ -1,12 +1,3 @@
----
-name: commit-push
-model: sonnet
-description: >
-  현재 변경사항을 커밋하고 푸시. 커밋 전에 프로젝트에 맞는 린터를 자동 실행하여 깨끗한 코드만 커밋.
-  트리거: 커밋 푸쉬해, 커푸, 커밋해, 커밋만해, commit, push
-allowed-tools: Bash, Read, Glob, Grep, Edit, Write
----
-
 ## 커밋 & 푸시
 
 현재 작업된 변경사항을 커밋하고 푸시한다.

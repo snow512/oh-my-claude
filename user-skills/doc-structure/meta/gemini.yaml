@@ -1,0 +1,7 @@
+name: doc-structure
+description: >
+  프로젝트 문서화 및 문서 최신화. "문서화해"로 소스 분석 후 문서 생성,
+  "문서정리해/문서업데이트/문서최신화"로 변경사항 기반 문서 갱신.
+  commit-push 스킬에서 커밋 직전에 자동 호출되어 문서도 함께 커밋됨.
+  트리거: 문서화해, 문서정리해, 문서업데이트해, 문서최신화해, document, update docs
+tools: shell, read_file, write_file, edit_file, glob, grep

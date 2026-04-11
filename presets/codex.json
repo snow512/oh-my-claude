@@ -1,0 +1,15 @@
+{
+  "name": "default",
+  "description": "Default Codex CLI settings",
+  "settings": {
+    "approval_policy": "on-request",
+    "sandbox_mode": "workspace-write",
+    "web_search": "live",
+    "features": {
+      "shell_tool": true,
+      "multi_agent": true,
+      "undo": true,
+      "codex_hooks": true
+    }
+  }
+}

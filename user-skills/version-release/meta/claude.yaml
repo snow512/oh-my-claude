@@ -1,0 +1,6 @@
+name: version-release
+description: >
+  버전 관리, CHANGELOG 작성, 릴리즈 노트 생성. 시맨틱 버저닝 정책에 따라 버전 업,
+  CHANGELOG.md 자동 생성/갱신. merge-branch에서 qa/main PR 시 자동 호출.
+  트리거: 버전업해, 체인지로그, 릴리즈노트, changelog, release note, version up, bump version
+allowed-tools: Bash, Read, Write, Edit, Glob, Grep

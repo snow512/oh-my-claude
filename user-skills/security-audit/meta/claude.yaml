@@ -1,0 +1,7 @@
+name: security-audit
+description: >
+  보안 점검 — 코드 내 하드코딩된 시크릿, .env 노출, 위험한 권한, 누락된 deny 규칙,
+  Claude 설정의 과도한 퍼미션까지 점검하고 수정 제안.
+  트리거: 보안점검해, 보안검사해, security audit, 시크릿점검, 퍼미션점검해
+allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Agent
+user-invocable: true

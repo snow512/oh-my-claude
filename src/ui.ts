@@ -52,7 +52,7 @@ process.on('SIGINT', () => { cursor.show(); process.exit(0); });
 
 export function renderBanner(): void {
   const title = 'claude-up';
-  const subtitle = 'Claude Code Environment Bootstrap';
+  const subtitle = 'LLM Environment Bootstrap';
   const width = subtitle.length + 4;
   const line = '─'.repeat(width);
 
@@ -212,7 +212,9 @@ export function renderSummary(results: SummaryResult[]): void {
   }
 }
 
-export function renderDone(): void {
-  console.log(`\n  ${style('⚠️  Plugins will be auto-installed on next Claude Code session.', C.yellow)}`);
+export function renderDone(providerNames?: string[]): void {
+  if (!providerNames || providerNames.includes('claude')) {
+    console.log(`\n  ${style('⚠️  Plugins will be auto-installed on next Claude Code session.', C.yellow)}`);
+  }
   console.log(`\n  Done! 🎉\n`);
 }

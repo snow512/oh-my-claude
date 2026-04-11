@@ -1,0 +1,11 @@
+{
+  "name": "default",
+  "description": "Default Codex CLI project-level settings",
+  "settings": {
+    "approval_policy": "on-request",
+    "sandbox_mode": "workspace-write",
+    "sandbox_workspace_write": {
+      "network_access": true
+    }
+  }
+}

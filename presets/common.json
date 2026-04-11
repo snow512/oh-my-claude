@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow_intents": [
+      "read-files",
+      "search",
+      "web-fetch",
+      "web-search",
+      "tasks",
+      "ask-user",
+      "skill",
+      "ide-diagnostics"
+    ],
+    "deny_intents": [
+      "force-push",
+      "hard-reset",
+      "rm-rf",
+      "branch-delete",
+      "force-checkout",
+      "git-clean"
+    ]
+  },
+  "skills": [
+    "branch-sync",
+    "clean-code",
+    "clean-ui",
+    "commit-push",
+    "doc-structure",
+    "enhance",
+    "merge-branch",
+    "project-sync",
+    "ralph-loop-run",
+    "restart-server",
+    "security-audit",
+    "setup-workspace",
+    "version-release"
+  ]
+}

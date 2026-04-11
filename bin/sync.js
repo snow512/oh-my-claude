@@ -41,10 +41,12 @@ const path = __importStar(require("path"));
 const https = __importStar(require("https"));
 const readline = __importStar(require("readline"));
 const stream_1 = require("stream");
-const installer_1 = require("./installer");
+const utils_1 = require("./utils");
 const ui_1 = require("./ui");
+const registry_1 = require("./providers/registry");
+const CLAUDE_DIR = path.join(require('os').homedir(), '.claude');
 // --- Constants ---
-const AUTH_PATH = path.join(installer_1.CLAUDE_DIR, '.cup-auth');
+const AUTH_PATH = path.join(CLAUDE_DIR, '.cup-auth');
 const GIST_PREFIX = 'cup-skill--';
 const MANIFEST_FILE = 'cup-manifest.json';
 const SETTINGS_FILE = 'cup-settings.json';
@@ -132,7 +134,7 @@ function githubApi(method, endpoint, token, body) {
 // --- Language detection ---
 function detectLang() {
     try {
-        const skillsDir = path.join(installer_1.CLAUDE_DIR, 'skills');
+        const skillsDir = path.join(CLAUDE_DIR, 'skills');
         const entries = fs.readdirSync(skillsDir, { withFileTypes: true });
         const firstDir = entries.find(e => e.isDirectory());
         if (!firstDir)
@@ -149,8 +151,8 @@ function detectLang() {
 }
 // --- Manifest building ---
 function buildManifest() {
-    const repoSkillsDir = path.join(installer_1.PACKAGE_ROOT, 'user-skills');
-    const localSkillsDir = path.join(installer_1.CLAUDE_DIR, 'skills');
+    const repoSkillsDir = path.join(utils_1.PACKAGE_ROOT, 'user-skills');
+    const localSkillsDir = path.join(CLAUDE_DIR, 'skills');
     const repoSkills = readValidSkillNames(repoSkillsDir);
     const localSkills = readValidSkillNames(localSkillsDir);
     const repoSet = new Set(repoSkills);
@@ -164,7 +166,7 @@ function buildManifest() {
         if (!localSet.has(name)) {
             removed.push(name);
         }
-        else if ((0, installer_1.isDirChanged)(path.join(repoSkillsDir, name), path.join(localSkillsDir, name))) {
+        else if ((0, utils_1.isDirChanged)(path.join(repoSkillsDir, name), path.join(localSkillsDir, name))) {
             modified.push(name);
             collectSkillContent(path.join(localSkillsDir, name), name, modifiedFiles);
         }
@@ -297,22 +299,40 @@ async function runPush(args, opts) {
         console.log(`  ${(0, ui_1.style)('Nothing to push.', ui_1.C.gray)}\n`);
         return;
     }
-    // Build gist files
-    const settingsPath = path.join(installer_1.CLAUDE_DIR, 'settings.json');
-    const rawSettings = (0, installer_1.readJson)(settingsPath) || {};
-    const syncSettings = {};
-    for (const key of SYNC_SETTINGS_KEYS) {
-        if (rawSettings[key] !== undefined)
-            syncSettings[key] = rawSettings[key];
-    }
-    const claudeMdPath = path.join(installer_1.CLAUDE_DIR, 'CLAUDE.md');
-    const cupBlock = extractCupBlock(claudeMdPath);
+    // Build gist files — multi-provider
+    const providers = (0, registry_1.resolveProviders)(opts.provider);
+    manifest.providers = providers.map(p => p.name);
     const gistFiles = {
         [MANIFEST_FILE]: { content: JSON.stringify(manifest, null, 2) },
-        [SETTINGS_FILE]: { content: JSON.stringify(syncSettings, null, 2) },
     };
-    if (cupBlock) {
-        gistFiles[CLAUDE_MD_FILE] = { content: cupBlock };
+    // Per-provider settings + instruction files
+    for (const provider of providers) {
+        const syncKeys = provider.getSyncKeys();
+        // Settings
+        const rawSettings = provider.readSettings() || {};
+        const syncSettings = {};
+        for (const key of syncKeys.settingsKeys) {
+            if (rawSettings[key] !== undefined)
+                syncSettings[key] = rawSettings[key];
+        }
+        const settingsGistKey = `cup-settings--${provider.name}.json`;
+        gistFiles[settingsGistKey] = { content: JSON.stringify(syncSettings, null, 2) };
+        // Instruction file cup block
+        const cupBlock = provider.readCupBlock();
+        if (cupBlock) {
+            gistFiles[syncKeys.instructionFileKey] = { content: cupBlock };
+        }
+    }
+    // Backward compat: also write old SETTINGS_FILE key for Claude
+    if (providers.some(p => p.name === 'claude')) {
+        const claudeSettings = gistFiles['cup-settings--claude.json'];
+        if (claudeSettings) {
+            gistFiles[SETTINGS_FILE] = claudeSettings;
+        }
+        const claudeBlock = gistFiles['cup-claude-md.md'];
+        if (claudeBlock) {
+            gistFiles[CLAUDE_MD_FILE] = claudeBlock;
+        }
     }
     // Include modified/custom skill files
     for (const skillName of skillsToInclude) {
@@ -397,62 +417,63 @@ async function runPull(opts) {
     console.log(`    ${(0, ui_1.style)('Removed:', ui_1.C.red)}   ${manifest.skills.removed.length}`);
     console.log(`    ${(0, ui_1.style)('Custom:', ui_1.C.cyan)}    ${manifest.skills.custom.length}`);
     console.log('');
-    // Apply settings (merge: remote keys overwrite, local-only keys preserved)
-    const settingsFile = gistData.files[SETTINGS_FILE];
-    if (settingsFile) {
-        const doIt = opts.yes || await (0, ui_1.ask)('Apply settings?', true);
-        if (doIt) {
-            const settingsPath = path.join(installer_1.CLAUDE_DIR, 'settings.json');
-            const localSettings = (0, installer_1.readJson)(settingsPath) || {};
-            const remoteSettings = JSON.parse(settingsFile.content);
-            // Backup first
-            if (fs.existsSync(settingsPath)) {
-                (0, installer_1.backup)(settingsPath);
+    // Apply per-provider settings + instruction files
+    const providers = (0, registry_1.resolveProviders)(opts.provider);
+    for (const provider of providers) {
+        const syncKeys = provider.getSyncKeys();
+        // Settings: try provider-specific key first, then legacy key
+        const providerSettingsKey = `cup-settings--${provider.name}.json`;
+        const settingsFile = gistData.files[providerSettingsKey]
+            || (provider.name === 'claude' ? gistData.files[SETTINGS_FILE] : null);
+        if (settingsFile) {
+            const doIt = opts.yes || await (0, ui_1.ask)(`Apply ${provider.displayName} settings?`, true);
+            if (doIt) {
+                provider.backupSettings();
+                const localSettings = provider.readSettings() || {};
+                const remoteSettings = JSON.parse(settingsFile.content);
+                const merged = { ...localSettings, ...remoteSettings };
+                provider.writeSettings(merged);
+                console.log(`  ${(0, ui_1.style)('✓', ui_1.C.green)} ${provider.displayName} settings applied.`);
             }
-            // Merge: remote keys overwrite, local-only keys preserved
-            const merged = { ...localSettings, ...remoteSettings };
-            (0, installer_1.writeJson)(settingsPath, merged);
-            console.log(`  ${(0, ui_1.style)('✓', ui_1.C.green)} Settings applied.`);
         }
-    }
-    // Apply CLAUDE.md cup block
-    const claudeMdFile = gistData.files[CLAUDE_MD_FILE];
-    if (claudeMdFile) {
-        const doIt = opts.yes || await (0, ui_1.ask)('Apply CLAUDE.md cup block?', true);
-        if (doIt) {
-            const claudeMdPath = path.join(installer_1.CLAUDE_DIR, 'CLAUDE.md');
-            if (fs.existsSync(claudeMdPath))
-                (0, installer_1.backup)(claudeMdPath);
-            applyCupBlock(claudeMdPath, claudeMdFile.content);
-            console.log(`  ${(0, ui_1.style)('✓', ui_1.C.green)} CLAUDE.md cup block applied.`);
+        // Instruction file cup block
+        const instrFile = gistData.files[syncKeys.instructionFileKey]
+            || (provider.name === 'claude' ? gistData.files[CLAUDE_MD_FILE] : null);
+        if (instrFile) {
+            const doIt = opts.yes || await (0, ui_1.ask)(`Apply ${provider.instructionFileName} cup block?`, true);
+            if (doIt) {
+                const instrPath = provider.getInstructionFilePath('global');
+                if (fs.existsSync(instrPath))
+                    (0, utils_1.backup)(instrPath);
+                provider.writeCupBlock(instrFile.content);
+                console.log(`  ${(0, ui_1.style)('✓', ui_1.C.green)} ${provider.instructionFileName} cup block applied.`);
+            }
         }
-    }
-    // Apply removed skills (delete local)
-    const localSkillsDir = path.join(installer_1.CLAUDE_DIR, 'skills');
-    for (const name of manifest.skills.removed) {
-        const localDir = path.join(localSkillsDir, name);
-        if (!fs.existsSync(localDir))
-            continue;
-        const doIt = opts.yes || await (0, ui_1.ask)(`Delete removed skill: ${(0, ui_1.style)(name, ui_1.C.yellow)}?`, true);
-        if (doIt) {
-            fs.rmSync(localDir, { recursive: true, force: true });
-            console.log(`  ${(0, ui_1.style)('✓', ui_1.C.green)} Removed skill: ${(0, ui_1.style)(name, ui_1.C.gray)}`);
+        // Skills: apply removed, modified, custom
+        for (const name of manifest.skills.removed) {
+            const localDir = path.join(provider.skillsDir, name);
+            if (!fs.existsSync(localDir))
+                continue;
+            const doIt = opts.yes || await (0, ui_1.ask)(`Delete removed skill: ${(0, ui_1.style)(name, ui_1.C.yellow)} (${provider.displayName})?`, true);
+            if (doIt) {
+                fs.rmSync(localDir, { recursive: true, force: true });
+                console.log(`  ${(0, ui_1.style)('✓', ui_1.C.green)} Removed skill: ${(0, ui_1.style)(name, ui_1.C.gray)}`);
+            }
         }
-    }
-    // Apply modified and custom skills (write SKILL.md)
-    const toWrite = [...manifest.skills.modified, ...manifest.skills.custom];
-    for (const name of toWrite) {
-        const key = `${GIST_PREFIX}${name}.md`;
-        const remoteFile = gistData.files[key];
-        if (!remoteFile)
-            continue;
-        const skillDir = path.join(localSkillsDir, name);
-        const skillMdPath = path.join(skillDir, 'SKILL.md');
-        const doIt = opts.yes || await (0, ui_1.ask)(`Apply skill: ${(0, ui_1.style)(name, name.includes('-') ? ui_1.C.cyan : ui_1.C.yellow)}?`, true);
-        if (doIt) {
-            fs.mkdirSync(skillDir, { recursive: true });
-            fs.writeFileSync(skillMdPath, remoteFile.content);
-            console.log(`  ${(0, ui_1.style)('✓', ui_1.C.green)} Applied skill: ${(0, ui_1.style)(name, ui_1.C.gray)}`);
+        const toWrite = [...manifest.skills.modified, ...manifest.skills.custom];
+        for (const name of toWrite) {
+            const key = `${GIST_PREFIX}${name}.md`;
+            const remoteFile = gistData.files[key];
+            if (!remoteFile)
+                continue;
+            const skillDir = path.join(provider.skillsDir, name);
+            const skillMdPath = path.join(skillDir, 'SKILL.md');
+            const doIt = opts.yes || await (0, ui_1.ask)(`Apply skill: ${(0, ui_1.style)(name, ui_1.C.cyan)} (${provider.displayName})?`, true);
+            if (doIt) {
+                fs.mkdirSync(skillDir, { recursive: true });
+                fs.writeFileSync(skillMdPath, remoteFile.content);
+                console.log(`  ${(0, ui_1.style)('✓', ui_1.C.green)} Applied skill: ${(0, ui_1.style)(name, ui_1.C.gray)}`);
+            }
         }
     }
     console.log(`\n  ${(0, ui_1.style)('Pull complete.', ui_1.C.green)}\n`);

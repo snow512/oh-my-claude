@@ -20,16 +20,17 @@ const getFlag = (name: string): string | null => {
 };
 
 const opts: Opts = {
-  force:   flags.has('--force') || flags.has('-f'),
-  yes:     flags.has('--yes') || flags.has('-y'),
-  json:    flags.has('--json'),
-  verbose: flags.has('--verbose') || flags.has('-v'),
-  fork:    flags.has('--fork'),
-  all:     flags.has('--all') || flags.has('-a'),
-  lang:    getFlag('lang') || undefined,
-  output:  getFlag('output') || getFlag('out') || undefined,
-  project: getFlag('project') || undefined,
-  limit:   parseInt(getFlag('limit') || '10', 10),
+  force:    flags.has('--force') || flags.has('-f'),
+  yes:      flags.has('--yes') || flags.has('-y'),
+  json:     flags.has('--json'),
+  verbose:  flags.has('--verbose') || flags.has('-v'),
+  fork:     flags.has('--fork'),
+  all:      flags.has('--all') || flags.has('-a'),
+  lang:     getFlag('lang') || undefined,
+  output:   getFlag('output') || getFlag('out') || undefined,
+  project:  getFlag('project') || undefined,
+  limit:    parseInt(getFlag('limit') || '10', 10),
+  provider: getFlag('provider') || undefined,
 };
 
 // --- Help ---
@@ -94,6 +95,7 @@ function showHelp(): void {
   console.log(`      ${style('--yes, -y', g)}       Apply all without asking\n`);
 
   console.log(`  ${style('Global Options', b)}`);
+  console.log(`    ${style('--provider=<name>', c)}  Target provider (claude,gemini,codex; auto-detect if omitted)`);
   console.log(`    ${style('--help, -h', c)}        Show this help message`);
   console.log(`    ${style('--version', c)}         Show version\n`);
 

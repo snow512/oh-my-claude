@@ -1,13 +1,3 @@
----
-name: project-sync
-description: >
-  프로젝트 최신화 — git pull, 변경 커밋 브리핑, 의존성 설치, 변경된 문서 요약까지 한 번에.
-  다른 팀원이 뭘 했는지 빠르게 파악하고 바로 개발 시작할 수 있게 해줌.
-  트리거: 프로젝트 최신화해, 최신화해, 풀해, pull, sync project, 뭐바뀌었어
-allowed-tools: Bash, Read, Glob, Grep
-user-invocable: true
----
-
 ## 프로젝트 최신화
 
 원격 저장소의 최신 변경사항을 가져오고, 뭐가 바뀌었는지 브리핑하고, 의존성을 설치한다.

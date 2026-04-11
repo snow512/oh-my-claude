@@ -70,7 +70,7 @@ process.on('SIGINT', () => { exports.cursor.show(); process.exit(0); });
 // --- Banner ---
 function renderBanner() {
     const title = 'claude-up';
-    const subtitle = 'Claude Code Environment Bootstrap';
+    const subtitle = 'LLM Environment Bootstrap';
     const width = subtitle.length + 4;
     const line = '─'.repeat(width);
     console.log('');
@@ -213,7 +213,9 @@ function renderSummary(results) {
         console.log(`  ${icon} ${style(r.label + ':', exports.C.bold)} ${style(r.detail, exports.C.gray)}`);
     }
 }
-function renderDone() {
-    console.log(`\n  ${style('⚠️  Plugins will be auto-installed on next Claude Code session.', exports.C.yellow)}`);
+function renderDone(providerNames) {
+    if (!providerNames || providerNames.includes('claude')) {
+        console.log(`\n  ${style('⚠️  Plugins will be auto-installed on next Claude Code session.', exports.C.yellow)}`);
+    }
     console.log(`\n  Done! 🎉\n`);
 }

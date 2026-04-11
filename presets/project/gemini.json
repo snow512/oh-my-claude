@@ -1,0 +1,9 @@
+{
+  "name": "default",
+  "description": "Default Gemini CLI project-level settings",
+  "settings": {
+    "tools": {
+      "allowed": ["write_file", "edit_file", "shell"]
+    }
+  }
+}

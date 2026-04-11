@@ -1,0 +1,24 @@
+{
+  "name": "default",
+  "description": "Default Gemini CLI settings",
+  "settings": {
+    "general": {
+      "defaultApprovalMode": "default"
+    },
+    "tools": {
+      "allowed": ["read_file", "glob", "grep", "web_fetch", "web_search"],
+      "sandbox": "docker"
+    },
+    "security": {
+      "disableYoloMode": true
+    }
+  },
+  "policies": [
+    { "toolName": "shell", "argsPattern": "git push.*(--force|-f)", "decision": "deny", "priority": 500 },
+    { "toolName": "shell", "argsPattern": "git reset.*--hard", "decision": "deny", "priority": 500 },
+    { "toolName": "shell", "argsPattern": "rm\\s+-rf", "decision": "deny", "priority": 500 },
+    { "toolName": "shell", "argsPattern": "git clean.*-f", "decision": "deny", "priority": 500 },
+    { "toolName": "shell", "argsPattern": "git checkout.*--\\s*\\.", "decision": "deny", "priority": 500 },
+    { "toolName": "shell", "argsPattern": "git branch.*-D", "decision": "deny", "priority": 500 }
+  ]
+}
