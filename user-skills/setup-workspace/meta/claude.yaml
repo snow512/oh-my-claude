@@ -1,0 +1,7 @@
+name: setup-workspace
+description: >
+  병렬 개발용 워크스페이스 생성 및 관리. 동일 프로젝트를 하드 클론하여 독립 환경으로 구성.
+  포트 충돌 방지, .env 자동 세팅, 의존성 설치까지 한 번에 처리.
+  트리거: 워크스페이스만들어, 워크스페이스설정해, setup workspace, new workspace, 병렬개발
+allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion
+user-invocable: true

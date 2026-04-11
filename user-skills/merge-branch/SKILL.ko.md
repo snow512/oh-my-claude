@@ -1,11 +1,3 @@
----
-name: merge-branch
-description: >
-  현재 브랜치를 대상 브랜치에 머지 또는 PR 생성. develop은 직접 머지, main/qa는 PR.
-  트리거: 머지해, 디벨롭에 머지해, qa에 PR해, 메인에 피알해, PR올려, merge, pull request
-allowed-tools: Bash, Read
----
-
 ## 브랜치 머지 / PR 생성
 
 현재 브랜치를 대상 브랜치에 통합한다.

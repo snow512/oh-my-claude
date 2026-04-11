@@ -1,12 +1,3 @@
----
-name: restart-server
-description: >
-  개발 서버 재기동 또는 중지. 프로젝트 유형(Node, Python, Go, Docker 등)을 자동 감지하여
-  적절한 방식으로 재시작. 풀스택, 단일 서버, Docker 모두 지원.
-  트리거: 서버재기동해, 서버 재시작해, 서버내려, 서버 중지해, restart server, stop server
-allowed-tools: Bash, Read, Glob, Grep, AskUserQuestion
----
-
 ## 서버 재기동 / 중지
 
 현재 프로젝트의 개발 서버를 재기동하거나 중지한다.

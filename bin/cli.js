@@ -26,6 +26,7 @@ const opts = {
     output: getFlag('output') || getFlag('out') || undefined,
     project: getFlag('project') || undefined,
     limit: parseInt(getFlag('limit') || '10', 10),
+    provider: getFlag('provider') || undefined,
 };
 // --- Help ---
 function showHelp() {
@@ -80,6 +81,7 @@ function showHelp() {
     console.log(`    ${(0, ui_1.style)('pull', c)}              Download settings & skills from cloud`);
     console.log(`      ${(0, ui_1.style)('--yes, -y', g)}       Apply all without asking\n`);
     console.log(`  ${(0, ui_1.style)('Global Options', b)}`);
+    console.log(`    ${(0, ui_1.style)('--provider=<name>', c)}  Target provider (claude,gemini,codex; auto-detect if omitted)`);
     console.log(`    ${(0, ui_1.style)('--help, -h', c)}        Show this help message`);
     console.log(`    ${(0, ui_1.style)('--version', c)}         Show version\n`);
     console.log(`  ${(0, ui_1.style)('Alias:', g)} claude-up = cup\n`);

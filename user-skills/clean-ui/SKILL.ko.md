@@ -1,12 +1,3 @@
----
-name: clean-ui
-description: >
-  프론트엔드 UI 코드 품질 점검 — 하드코딩 색상, 디자인 토큰, 컴포넌트 패턴, 접근성,
-  CSS 구조, 성능 등 UI 특화 정리. /simplify로는 잡지 못하는 UI 전문 체크.
-  트리거: UI정리해, ui정리해, clean ui, 유아이정리해, 프론트정리해
-allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Agent
----
-
 ## UI 정리
 
 프론트엔드 소스 중 변경된 UI 파일을 대상으로 UI 코드 품질을 점검하고 수정한다.

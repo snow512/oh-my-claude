@@ -1,13 +1,3 @@
----
-name: branch-sync
-description: >
-  브랜치 양방향 동기화 — 현재 브랜치와 대상 브랜치 사이의 커밋을 양방향으로 맞춘다.
-  단방향(가져오기만/보내기만)도 지원. 충돌 시 안전하게 중단.
-  트리거: 싱크해, 디벨롭에 싱크해, 브랜치 동기화해, sync, 가져와, 당겨와
-allowed-tools: Bash, Read, Glob, Grep
-user-invocable: true
----
-
 ## Branch Sync
 
 Synchronize commits between the current branch and a target branch.

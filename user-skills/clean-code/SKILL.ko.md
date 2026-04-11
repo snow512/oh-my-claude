@@ -1,12 +1,3 @@
----
-name: clean-code
-description: >
-  코드 정리 — 프로젝트 유형을 자동 감지하여 린팅, 중복 제거, 버그헌팅, 보안 점검 등 클린코드 작업을 수행.
-  TS/JS 프로젝트는 ESLint 자동 실행, /simplify로 중복 코드 제거까지 포함.
-  트리거: 코드정리해, 코드 정리해, clean code, 린트해, eslint해
-allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Agent, Skill
----
-
 ## 코드정리해
 
 미푸시 커밋 또는 언스테이징 변경 파일을 대상으로 클린코드 작업을 수행한다.
