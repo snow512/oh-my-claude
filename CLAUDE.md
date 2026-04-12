@@ -91,7 +91,7 @@ cup pull [--provider=...]                   # Download from Gist
 Alias: `claude-up` = `cup`
 Auto-detect: `--provider` 미지정 시 설치된 도구 전부 대상
 
-## User Skills (13)
+## User Skills (14)
 
 | Skill | Trigger | Purpose |
 |-------|---------|---------|
@@ -102,6 +102,7 @@ Auto-detect: `--provider` 미지정 시 설치된 도구 전부 대상
 | doc-structure | document, update docs | Generate docs from source / update docs from changes |
 | enhance | harden, improve, unify UI | Active code hardening + UX improvement + UI consistency |
 | merge-branch | merge, create PR | Direct merge to develop / PR for main·qa |
+| oneshot | 원스탑구현해, oneshot | Plan → implement → quality loop → test → commit (full pipeline) |
 | project-sync | pull, sync project | git pull + commit briefing + deps install + doc summary |
 | ralph-loop-run | ralph loop | Auto-determine iterations & completion condition |
 | restart-server | restart server, stop | Auto-detect project type → restart/stop server |

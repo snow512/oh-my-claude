@@ -13,6 +13,7 @@ Available skills (say the trigger phrase to use):
 | doc-structure | document, update docs | 문서화해, 문서정리해 |
 | enhance | harden, improve, unify UI | 보강해, 개선해, UI개선해 |
 | merge-branch | merge, create PR | 머지해, PR올려 |
+| oneshot | oneshot, one-stop | 원스탑구현해, 한방에구현해 |
 | branch-sync | sync, pull from | 싱크해, 가져와 |
 | project-sync | pull, sync project | 최신화해, 풀해 |
 | ralph-loop-run | ralph loop | 랄프루프해 |

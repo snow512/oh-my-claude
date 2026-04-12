@@ -27,6 +27,7 @@
     "doc-structure",
     "enhance",
     "merge-branch",
+    "oneshot",
     "project-sync",
     "ralph-loop-run",
     "restart-server",
