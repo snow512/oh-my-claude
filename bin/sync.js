@@ -44,15 +44,13 @@ const stream_1 = require("stream");
 const utils_1 = require("./utils");
 const ui_1 = require("./ui");
 const registry_1 = require("./providers/registry");
-const CLAUDE_DIR = path.join(require('os').homedir(), '.claude');
+const CLAUDE_DIR = path.join(utils_1.HOME_DIR, '.claude');
 // --- Constants ---
 const AUTH_PATH = path.join(CLAUDE_DIR, '.cup-auth');
 const GIST_PREFIX = 'cup-skill--';
 const MANIFEST_FILE = 'cup-manifest.json';
 const SETTINGS_FILE = 'cup-settings.json';
 const CLAUDE_MD_FILE = 'cup-claude-md.md';
-const CUP_START = '<!-- <cup>';
-const CUP_END = '<!-- </cup> -->';
 const SYNC_SETTINGS_KEYS = ['permissions', 'enabledPlugins', 'extraKnownMarketplaces'];
 function isValidSkillName(name) {
     return /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(name) && !name.includes('..');
@@ -189,37 +187,6 @@ function buildManifest() {
         },
         modifiedFiles,
     };
-}
-// --- Extract CLAUDE.md cup block ---
-function extractCupBlock(claudeMdPath) {
-    try {
-        const content = fs.readFileSync(claudeMdPath, 'utf-8');
-        const start = content.indexOf(CUP_START);
-        const end = content.indexOf(CUP_END);
-        if (start === -1 || end === -1)
-            return null;
-        return content.slice(start, end + CUP_END.length);
-    }
-    catch {
-        return null;
-    }
-}
-function applyCupBlock(claudeMdPath, block) {
-    let content = '';
-    try {
-        content = fs.readFileSync(claudeMdPath, 'utf-8');
-    }
-    catch { }
-    const start = content.indexOf(CUP_START);
-    const end = content.indexOf(CUP_END);
-    if (start !== -1 && end !== -1) {
-        content = content.slice(0, start) + block + content.slice(end + CUP_END.length);
-    }
-    else {
-        content = content + '\n\n' + block + '\n';
-    }
-    fs.mkdirSync(path.dirname(claudeMdPath), { recursive: true });
-    fs.writeFileSync(claudeMdPath, content);
 }
 // --- Login command ---
 async function runLogin(opts) {

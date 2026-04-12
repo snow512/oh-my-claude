@@ -90,6 +90,7 @@ export interface Provider {
   getInstalledSkills(): string[];
   buildSkillContent(body: string, meta: Record<string, unknown>): string;
   getSkillMeta(skillName: string): Record<string, unknown> | null;
+  getAvailableSkillsFromRepo(): Array<{ name: string; desc: string }>;
 
   // --- Instruction File ---
   getInstructionFilePath(scope: 'global' | 'project'): string;

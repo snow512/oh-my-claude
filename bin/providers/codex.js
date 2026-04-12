@@ -45,17 +45,16 @@ try {
     TOML = require('smol-toml');
 }
 catch { }
-const HOME = require('os').homedir();
 class CodexProvider {
     constructor() {
         this.name = 'codex';
         this.displayName = 'Codex CLI';
         this.cliCommand = 'codex';
-        this.homeDir = path.join(HOME, '.codex');
+        this.homeDir = path.join(utils_1.HOME_DIR, '.codex');
         this.projectDir = '.codex';
         this.settingsFileName = 'config.toml';
         this.instructionFileName = 'AGENTS.md';
-        this.skillsDir = path.join(HOME, '.agents', 'skills');
+        this.skillsDir = path.join(utils_1.HOME_DIR, '.agents', 'skills');
     }
     // --- Detection ---
     isInstalled() {
