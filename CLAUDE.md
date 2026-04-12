@@ -1,53 +1,95 @@
 # claude-up
 
-Claude Code environment bootstrap + management tool. npm CLI + Claude plugin hybrid.
+Multi-LLM environment bootstrap + management tool. Claude Code (main) + Gemini CLI + Codex CLI.
+npm CLI + Claude plugin hybrid.
 
 ## Project Structure
 
 ```
 claude-up/
-├── bin/
-│   ├── cli.js              # CLI entry point (command routing)
-│   ├── ui.js               # UI rendering (colors, banner, checkbox, spinner)
-│   └── installer.js        # init/project-init/clone/backup/restore/status/doctor/update logic
-├── package.json            # npm package (bin: claude-up, cup)
-├── plugin.json             # Claude plugin manifest
-├── statusline-command.sh   # Custom status bar script
+├── src/
+│   ├── cli.ts              # CLI entry point (command routing, --provider flag)
+│   ├── installer.ts        # init/install/project-init/clone/backup/restore/status/doctor/update/sessions/resume/uninstall
+│   ├── sync.ts             # login/push/pull (GitHub Gist cloud sync, multi-provider)
+│   ├── ui.ts               # UI rendering (colors, banner, checkbox, spinner)
+│   ├── utils.ts            # Shared utilities (readJson, writeJson, backup, parseSimpleYaml)
+│   └── providers/
+│       ├── types.ts        # Provider interface + shared types
+│       ├── registry.ts     # Auto-detection + --provider resolution
+│       ├── claude.ts       # ClaudeProvider (settings.json, CLAUDE.md)
+│       ├── gemini.ts       # GeminiProvider (settings.json, policies TOML, GEMINI.md)
+│       └── codex.ts        # CodexProvider (config.toml, AGENTS.md)
+├── bin/                    # Compiled JS output (tsc → bin/)
 ├── presets/
-│   ├── user.json           # User-level settings (permissions, plugins, marketplaces)
-│   └── project.json        # Project-level settings (destructive permissions)
-├── user-skills/            # Skills copied to ~/.claude/skills/
-│   ├── */SKILL.md          # English (default)
-│   └── */SKILL.ko.md       # Korean
-├── project-skills/         # Skills copied to .claude/skills/
-├── commands/               # Claude plugin commands (CLI wrappers)
-└── skills/                 # Claude plugin skills
+│   ├── common.json         # Shared permission intents + skill list
+│   ├── claude.json         # Claude: permissions, enabledPlugins, marketplaces
+│   ├── gemini.json         # Gemini: settings, policies
+│   ├── codex.json          # Codex: settings (TOML source)
+│   ├── claude-md.md        # CLAUDE.md cup block template
+│   ├── gemini-md.md        # GEMINI.md cup block template
+│   ├── agents-md.md        # AGENTS.md cup block template
+│   └── project/            # Project-level presets (per provider)
+├── user-skills/            # 13 skills (en + ko + meta per provider)
+│   └── {name}/
+│       ├── SKILL.md        # English body (no frontmatter)
+│       ├── SKILL.ko.md     # Korean body
+│       └── meta/
+│           ├── claude.yaml # Claude frontmatter
+│           ├── gemini.yaml # Gemini frontmatter
+│           └── codex.yaml  # Codex frontmatter
+├── project-skills/         # Project-level skills
+├── commands/               # Claude plugin commands
+├── skills/                 # Claude plugin skills
+├── plugin.json             # Claude plugin manifest
+├── statusline-command.sh   # Claude status bar script
+└── package.json            # @snow512/claude-up
 ```
 
 ## Key Rules
 
-- **bin/*.js**: Zero dependencies. Node.js built-in modules only (fs, path, readline, child_process)
+- **Provider Adapter Pattern**: All provider-specific logic lives in `src/providers/{name}.ts` implementing `Provider` interface
+- **Skill structure**: Body (SKILL.md) has no frontmatter; meta/{provider}.yaml has provider-specific frontmatter. `buildSkillContent()` combines them at install time.
+- **bin/*.js**: One runtime dependency (`smol-toml` for TOML read/write). Everything else uses Node.js built-ins.
 - **CLI output**: English
-- **When modifying user-skills**: Update both the repo and `~/.claude/skills/`
-- **Preset merge strategy**: Overwrite only preset keys; preserve other existing keys (statusLine, etc.)
+- **When modifying user-skills**: Update SKILL.md (body) + meta/*.yaml (frontmatter) separately
+- **Preset merge strategy**: Overwrite only preset keys; preserve other existing keys
 - **Skill overwrite policy**: Repo is source of truth → overwrite. Local-only skills are not deleted
 - **Backup required**: Always create `.bak.{timestamp}` before modifying settings files
-- **i18n**: Skills support en/ko. SKILL.md = English (default), SKILL.ko.md = Korean
+- **i18n**: Skills support en/ko. SKILL.md = English, SKILL.ko.md = Korean. meta/ is shared.
+
+## Provider Details
+
+| | Claude (main) | Gemini | Codex |
+|---|---|---|---|
+| homeDir | `~/.claude/` | `~/.gemini/` | `~/.codex/` |
+| settings | `settings.json` | `settings.json` | `config.toml` |
+| instruction | `CLAUDE.md` | `GEMINI.md` | `AGENTS.md` |
+| skillsDir | `~/.claude/skills/` | `~/.gemini/skills/` | `~/.agents/skills/` |
+| permissions | JSON allow/deny | TOML policies | TOML approval_policy |
+| preset | `presets/claude.json` | `presets/gemini.json` | `presets/codex.json` |
 
 ## CLI Commands
 
 ```bash
-cup init              # Interactive environment setup (permissions, plugins, skills, statusline)
-cup project-init      # Set up project-level permissions & skills
-cup update            # Update only changed skills from repo
-cup status            # Show current environment summary
-cup doctor            # Diagnose configuration issues
-cup clone             # Export current ~/.claude/ as portable package
-cup backup            # Snapshot ~/.claude/ to a .tar.gz
-cup restore <file>    # Restore from backup or clone folder
+cup init [--provider=claude,gemini,codex]   # Interactive environment setup
+cup install <target> [--provider=...]       # Install specific component
+cup project-init [--provider=...]           # Set up project-level permissions
+cup update [--provider=...]                 # Check & apply updates from repo
+cup status [--provider=...]                 # Show current environment summary
+cup doctor [--provider=...]                 # Diagnose configuration issues
+cup clone [--provider=...]                  # Export as portable package
+cup backup [--provider=...]                 # Snapshot to .tar.gz
+cup restore <file> [--provider=...]         # Restore from backup
+cup uninstall [--provider=...]              # Remove cup settings
+cup sessions [--all]                        # List sessions (all providers)
+cup resume [id] [--fork]                    # Resume a session
+cup login                                   # GitHub token for cloud sync
+cup push [skills...]                        # Upload to Gist (multi-provider)
+cup pull [--provider=...]                   # Download from Gist
 ```
 
 Alias: `claude-up` = `cup`
+Auto-detect: `--provider` 미지정 시 설치된 도구 전부 대상
 
 ## User Skills (13)
 
@@ -63,7 +105,7 @@ Alias: `claude-up` = `cup`
 | project-sync | pull, sync project | git pull + commit briefing + deps install + doc summary |
 | ralph-loop-run | ralph loop | Auto-determine iterations & completion condition |
 | restart-server | restart server, stop | Auto-detect project type → restart/stop server |
-| security-audit | security audit | Secret scan + .env check + Claude permission audit + dep security |
+| security-audit | security audit | Secret scan + .env check + permission audit + dep security |
 | setup-workspace | setup workspace | Hard-clone parallel workspaces (auto port assignment) |
 | version-release | bump version, changelog | SemVer version management + CHANGELOG.md generation |
 
@@ -89,4 +131,4 @@ When a skill needs to remember per-project settings, store in `.claude/settings.
 ## GitHub
 
 - Repository: https://github.com/snow512/claude-up
-- npm publish planned (not yet registered)
+- Package: `@snow512/claude-up@0.1.0-beta` (GitHub Packages)

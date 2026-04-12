@@ -61,6 +61,17 @@ Skipped for projects that have no `docs/` folder.
 
 ---
 
+### Plan Documents
+
+When entering plan mode (EnterPlanMode) or when the user explicitly asks to plan/design, write the plan to `docs/plans/`.
+
+- File naming: `docs/plans/YYYY-MM-DD-<topic>.md`
+- Include: goal, approach, steps, file impact, risks
+- If a design spec is produced by a brainstorming skill, save it to `docs/specs/YYYY-MM-DD-<topic>-design.md`
+- Plans and specs are committed along with the implementation
+
+---
+
 ### Notes
 
 - Preserve the existing documents' style and language.
