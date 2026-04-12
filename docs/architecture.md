@@ -28,6 +28,7 @@ claude-up/
 │   ├── utils.ts                # Shared utilities (readJson, writeJson, backup, parseSimpleYaml)
 │   └── providers/
 │       ├── types.ts            # Provider interface + shared types
+│       ├── base.ts             # Shared helpers (buildSkillContent, cup block I/O, session scan)
 │       ├── registry.ts         # Auto-detection + --provider flag resolution
 │       ├── claude.ts           # ClaudeProvider (settings.json, CLAUDE.md, ~/.claude/skills/)
 │       ├── gemini.ts           # GeminiProvider (settings.json, policies TOML, GEMINI.md, ~/.gemini/skills/)

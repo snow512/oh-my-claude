@@ -39,6 +39,7 @@ const path = __importStar(require("path"));
 const child_process_1 = require("child_process");
 const utils_1 = require("../utils");
 const ui_1 = require("../ui");
+const base_1 = require("./base");
 const HOME = require('os').homedir();
 class ClaudeProvider {
     constructor() {
@@ -117,23 +118,7 @@ class ClaudeProvider {
     // --- Skills ---
     installSkill(skillDir, skillName, lang) {
         const destDir = path.join(this.skillsDir, skillName);
-        const metaPath = path.join(skillDir, 'meta', 'claude.yaml');
-        const bodyFile = lang === 'ko' ? 'SKILL.ko.md' : 'SKILL.md';
-        const bodyPath = path.join(skillDir, bodyFile);
-        const fallbackPath = path.join(skillDir, 'SKILL.md');
-        const body = fs.existsSync(bodyPath)
-            ? fs.readFileSync(bodyPath, 'utf-8')
-            : fs.readFileSync(fallbackPath, 'utf-8');
-        let content;
-        if (fs.existsSync(metaPath)) {
-            const meta = (0, utils_1.parseSimpleYaml)(fs.readFileSync(metaPath, 'utf-8'));
-            content = this.buildSkillContent(body, meta);
-        }
-        else {
-            content = body;
-        }
-        fs.mkdirSync(destDir, { recursive: true });
-        fs.writeFileSync(path.join(destDir, 'SKILL.md'), content);
+        (0, base_1.installSkillWithMeta)(skillDir, destDir, lang, 'claude.yaml');
     }
     getInstalledSkills() {
         try {
@@ -146,20 +131,7 @@ class ClaudeProvider {
         }
     }
     buildSkillContent(body, meta) {
-        const lines = ['---'];
-        for (const [key, val] of Object.entries(meta)) {
-            const strVal = String(val);
-            if (strVal.includes('\n')) {
-                lines.push(`${key}: >`);
-                for (const line of strVal.split('\n'))
-                    lines.push(`  ${line}`);
-            }
-            else {
-                lines.push(`${key}: ${strVal}`);
-            }
-        }
-        lines.push('---', '');
-        return lines.join('\n') + body;
+        return (0, base_1.buildSkillContent)(body, meta);
     }
     getSkillMeta(skillName) {
         const metaPath = path.join(utils_1.PACKAGE_ROOT, 'user-skills', skillName, 'meta', 'claude.yaml');
@@ -181,36 +153,10 @@ class ClaudeProvider {
         return fs.readFileSync(templatePath, 'utf-8').trim();
     }
     readCupBlock() {
-        const filePath = this.getInstructionFilePath('global');
-        try {
-            const content = fs.readFileSync(filePath, 'utf-8');
-            const start = content.indexOf(CUP_START);
-            const end = content.indexOf(CUP_END);
-            if (start === -1 || end === -1)
-                return null;
-            return content.slice(start, end + CUP_END.length);
-        }
-        catch {
-            return null;
-        }
+        return (0, base_1.readCupBlockFromFile)(this.getInstructionFilePath('global'));
     }
     writeCupBlock(block) {
-        const filePath = this.getInstructionFilePath('global');
-        let content = '';
-        try {
-            content = fs.readFileSync(filePath, 'utf-8');
-        }
-        catch { }
-        const start = content.indexOf(CUP_START);
-        const end = content.indexOf(CUP_END);
-        if (start !== -1 && end !== -1) {
-            content = content.slice(0, start) + block + content.slice(end + CUP_END.length);
-        }
-        else {
-            content = content ? content.trimEnd() + '\n\n' + block + '\n' : block + '\n';
-        }
-        fs.mkdirSync(path.dirname(filePath), { recursive: true });
-        fs.writeFileSync(filePath, content);
+        (0, base_1.writeCupBlockToFile)(this.getInstructionFilePath('global'), block);
     }
     // --- Sessions ---
     listSessions(opts) {
@@ -484,28 +430,7 @@ class ClaudeProvider {
         return preset;
     }
     getAvailableSkillsFromRepo() {
-        const skillsSrc = path.join(utils_1.PACKAGE_ROOT, 'user-skills');
-        try {
-            return fs.readdirSync(skillsSrc, { withFileTypes: true })
-                .filter(e => e.isDirectory())
-                .map(e => {
-                let desc = '';
-                const metaPath = path.join(skillsSrc, e.name, 'meta', 'claude.yaml');
-                try {
-                    const meta = (0, utils_1.parseSimpleYaml)(fs.readFileSync(metaPath, 'utf-8'));
-                    if (meta.description)
-                        desc = String(meta.description).trim().slice(0, 50);
-                }
-                catch { }
-                return { name: e.name, desc: desc || '(no description)' };
-            });
-        }
-        catch {
-            return [];
-        }
+        return (0, base_1.getAvailableSkillsFromRepo)(this.name);
     }
 }
 exports.ClaudeProvider = ClaudeProvider;
-// --- Constants ---
-const CUP_START = '<!-- <cup>';
-const CUP_END = '<!-- </cup> -->';

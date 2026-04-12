@@ -1,10 +1,19 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { execFileSync } from 'child_process';
-import { readJson, writeJson, backup, copyDirRecursive, parseSimpleYaml, PACKAGE_ROOT } from '../utils';
+import { readJson, writeJson, backup, parseSimpleYaml, PACKAGE_ROOT } from '../utils';
 import { progressLine, ask, checkbox, C, style } from '../ui';
 import type { CheckboxItem } from '../ui';
 import type { Provider, ProviderName, PermissionIntents, PluginInfo, SessionInfo, SessionOpts, SyncKeys, InitStep, StepResult } from './types';
+import {
+  CUP_START,
+  CUP_END,
+  buildSkillContent,
+  getAvailableSkillsFromRepo,
+  readCupBlockFromFile,
+  writeCupBlockToFile,
+  installSkillWithMeta,
+} from './base';
 
 const HOME = require('os').homedir();
 
@@ -98,25 +107,7 @@ export class ClaudeProvider implements Provider {
 
   installSkill(skillDir: string, skillName: string, lang: string): void {
     const destDir = path.join(this.skillsDir, skillName);
-    const metaPath = path.join(skillDir, 'meta', 'claude.yaml');
-    const bodyFile = lang === 'ko' ? 'SKILL.ko.md' : 'SKILL.md';
-    const bodyPath = path.join(skillDir, bodyFile);
-    const fallbackPath = path.join(skillDir, 'SKILL.md');
-
-    const body = fs.existsSync(bodyPath)
-      ? fs.readFileSync(bodyPath, 'utf-8')
-      : fs.readFileSync(fallbackPath, 'utf-8');
-
-    let content: string;
-    if (fs.existsSync(metaPath)) {
-      const meta = parseSimpleYaml(fs.readFileSync(metaPath, 'utf-8'));
-      content = this.buildSkillContent(body, meta);
-    } else {
-      content = body;
-    }
-
-    fs.mkdirSync(destDir, { recursive: true });
-    fs.writeFileSync(path.join(destDir, 'SKILL.md'), content);
+    installSkillWithMeta(skillDir, destDir, lang, 'claude.yaml');
   }
 
   getInstalledSkills(): string[] {
@@ -128,18 +119,7 @@ export class ClaudeProvider implements Provider {
   }
 
   buildSkillContent(body: string, meta: Record<string, unknown>): string {
-    const lines: string[] = ['---'];
-    for (const [key, val] of Object.entries(meta)) {
-      const strVal = String(val);
-      if (strVal.includes('\n')) {
-        lines.push(`${key}: >`);
-        for (const line of strVal.split('\n')) lines.push(`  ${line}`);
-      } else {
-        lines.push(`${key}: ${strVal}`);
-      }
-    }
-    lines.push('---', '');
-    return lines.join('\n') + body;
+    return buildSkillContent(body, meta);
   }
 
   getSkillMeta(skillName: string): Record<string, unknown> | null {
@@ -162,32 +142,11 @@ export class ClaudeProvider implements Provider {
   }
 
   readCupBlock(): string | null {
-    const filePath = this.getInstructionFilePath('global');
-    try {
-      const content = fs.readFileSync(filePath, 'utf-8');
-      const start = content.indexOf(CUP_START);
-      const end = content.indexOf(CUP_END);
-      if (start === -1 || end === -1) return null;
-      return content.slice(start, end + CUP_END.length);
-    } catch { return null; }
+    return readCupBlockFromFile(this.getInstructionFilePath('global'));
   }
 
   writeCupBlock(block: string): void {
-    const filePath = this.getInstructionFilePath('global');
-    let content = '';
-    try { content = fs.readFileSync(filePath, 'utf-8'); } catch {}
-
-    const start = content.indexOf(CUP_START);
-    const end = content.indexOf(CUP_END);
-
-    if (start !== -1 && end !== -1) {
-      content = content.slice(0, start) + block + content.slice(end + CUP_END.length);
-    } else {
-      content = content ? content.trimEnd() + '\n\n' + block + '\n' : block + '\n';
-    }
-
-    fs.mkdirSync(path.dirname(filePath), { recursive: true });
-    fs.writeFileSync(filePath, content);
+    writeCupBlockToFile(this.getInstructionFilePath('global'), block);
   }
 
   // --- Sessions ---
@@ -458,24 +417,6 @@ export class ClaudeProvider implements Provider {
   }
 
   getAvailableSkillsFromRepo(): CheckboxItem[] {
-    const skillsSrc = path.join(PACKAGE_ROOT, 'user-skills');
-    try {
-      return fs.readdirSync(skillsSrc, { withFileTypes: true })
-        .filter(e => e.isDirectory())
-        .map(e => {
-          let desc = '';
-          const metaPath = path.join(skillsSrc, e.name, 'meta', 'claude.yaml');
-          try {
-            const meta = parseSimpleYaml(fs.readFileSync(metaPath, 'utf-8'));
-            if (meta.description) desc = String(meta.description).trim().slice(0, 50);
-          } catch {}
-          return { name: e.name, desc: desc || '(no description)' };
-        });
-    } catch { return []; }
+    return getAvailableSkillsFromRepo(this.name);
   }
 }
-
-// --- Constants ---
-
-const CUP_START = '<!-- <cup>';
-const CUP_END = '<!-- </cup> -->';
