@@ -4,9 +4,8 @@ import * as readline from 'readline';
 import { execFileSync } from 'child_process';
 import { renderBanner, renderStep, progressLine, ask, checkbox, renderSummary, renderDone, C, style } from './ui';
 import type { SummaryResult, CheckboxItem } from './ui';
-import { readJson, writeJson, copyDirRecursive, isDirChanged, backup, timestamp, parseSimpleYaml, PACKAGE_ROOT } from './utils';
+import { readJson, writeJson, copyDirRecursive, isDirChanged, backup, timestamp, PACKAGE_ROOT, HOME_DIR } from './utils';
 import { resolveProviders, getProvider } from './providers/registry';
-import { ClaudeProvider } from './providers/claude';
 import type { Provider, SecurityLevelConfig } from './providers/types';
 
 // --- Types ---
@@ -35,7 +34,7 @@ interface CloneItem {
 
 // --- Backward compat exports (used by sync.ts) ---
 
-export const CLAUDE_DIR = path.join(require('os').homedir(), '.claude');
+export const CLAUDE_DIR = path.join(HOME_DIR, '.claude');
 export { readJson, writeJson, isDirChanged, backup, PACKAGE_ROOT };
 
 // --- Main: init ---
@@ -143,7 +142,7 @@ export async function runInstall(target: string | undefined, opts: Opts = {}): P
       case 'skills': {
         console.log(`  ${style('Installing skills...', C.bold)}\n`);
         const skillsSrc = path.join(PACKAGE_ROOT, 'user-skills');
-        const available = (provider as ClaudeProvider).getAvailableSkillsFromRepo();
+        const available = provider.getAvailableSkillsFromRepo();
         const names = available.map(s => s.name);
         for (const name of names) {
           provider.installSkill(path.join(skillsSrc, name), name, lang);

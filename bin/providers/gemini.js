@@ -40,17 +40,16 @@ const child_process_1 = require("child_process");
 const utils_1 = require("../utils");
 const ui_1 = require("../ui");
 const base_1 = require("./base");
-const HOME = require('os').homedir();
 class GeminiProvider {
     constructor() {
         this.name = 'gemini';
         this.displayName = 'Gemini CLI';
         this.cliCommand = 'gemini';
-        this.homeDir = path.join(HOME, '.gemini');
+        this.homeDir = path.join(utils_1.HOME_DIR, '.gemini');
         this.projectDir = '.gemini';
         this.settingsFileName = 'settings.json';
         this.instructionFileName = 'GEMINI.md';
-        this.skillsDir = path.join(HOME, '.gemini', 'skills');
+        this.skillsDir = path.join(utils_1.HOME_DIR, '.gemini', 'skills');
     }
     // --- Detection ---
     isInstalled() {

@@ -1,9 +1,11 @@
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 
 // --- Constants ---
 
 export const PACKAGE_ROOT = path.resolve(__dirname, '..');
+export const HOME_DIR = os.homedir();
 
 // --- JSON I/O ---
 

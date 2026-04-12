@@ -3,13 +3,13 @@ import * as path from 'path';
 import * as https from 'https';
 import * as readline from 'readline';
 import { Writable } from 'stream';
-import { readJson, writeJson, isDirChanged, backup, PACKAGE_ROOT } from './utils';
+import { readJson, writeJson, isDirChanged, backup, PACKAGE_ROOT, HOME_DIR } from './utils';
 import { renderBanner, progressLine, ask, C, style } from './ui';
 import type { Opts } from './installer';
 import { resolveProviders } from './providers/registry';
 import type { Provider } from './providers/types';
 
-const CLAUDE_DIR = path.join(require('os').homedir(), '.claude');
+const CLAUDE_DIR = path.join(HOME_DIR, '.claude');
 
 // --- Types ---
 
@@ -34,8 +34,6 @@ const GIST_PREFIX = 'cup-skill--';
 const MANIFEST_FILE = 'cup-manifest.json';
 const SETTINGS_FILE = 'cup-settings.json';
 const CLAUDE_MD_FILE = 'cup-claude-md.md';
-const CUP_START = '<!-- <cup>';
-const CUP_END = '<!-- </cup> -->';
 const SYNC_SETTINGS_KEYS = ['permissions', 'enabledPlugins', 'extraKnownMarketplaces'];
 
 function isValidSkillName(name: string): boolean {
@@ -183,37 +181,6 @@ function buildManifest(): { manifest: SyncManifest; modifiedFiles: Record<string
     },
     modifiedFiles,
   };
-}
-
-// --- Extract CLAUDE.md cup block ---
-
-function extractCupBlock(claudeMdPath: string): string | null {
-  try {
-    const content = fs.readFileSync(claudeMdPath, 'utf-8');
-    const start = content.indexOf(CUP_START);
-    const end = content.indexOf(CUP_END);
-    if (start === -1 || end === -1) return null;
-    return content.slice(start, end + CUP_END.length);
-  } catch {
-    return null;
-  }
-}
-
-function applyCupBlock(claudeMdPath: string, block: string): void {
-  let content = '';
-  try { content = fs.readFileSync(claudeMdPath, 'utf-8'); } catch {}
-
-  const start = content.indexOf(CUP_START);
-  const end = content.indexOf(CUP_END);
-
-  if (start !== -1 && end !== -1) {
-    content = content.slice(0, start) + block + content.slice(end + CUP_END.length);
-  } else {
-    content = content + '\n\n' + block + '\n';
-  }
-
-  fs.mkdirSync(path.dirname(claudeMdPath), { recursive: true });
-  fs.writeFileSync(claudeMdPath, content);
 }
 
 // --- Login command ---

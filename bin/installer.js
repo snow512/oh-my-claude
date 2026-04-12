@@ -59,7 +59,7 @@ Object.defineProperty(exports, "backup", { enumerable: true, get: function () { 
 Object.defineProperty(exports, "PACKAGE_ROOT", { enumerable: true, get: function () { return utils_1.PACKAGE_ROOT; } });
 const registry_1 = require("./providers/registry");
 // --- Backward compat exports (used by sync.ts) ---
-exports.CLAUDE_DIR = path.join(require('os').homedir(), '.claude');
+exports.CLAUDE_DIR = path.join(utils_1.HOME_DIR, '.claude');
 // --- Main: init ---
 async function runInit(opts = {}) {
     (0, ui_1.renderBanner)();

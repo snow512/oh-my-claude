@@ -119,28 +119,36 @@ function showVersion(): void {
 
 // --- Route ---
 
-switch (command) {
-  case 'init':         runInit(opts); break;
-  case 'install':      runInstall(subcommand, opts); break;
-  case 'project-init': runProjectInit(opts); break;
-  case 'clone':        runClone(opts); break;
-  case 'backup':       runBackup(opts); break;
-  case 'restore':      runRestore(subcommand, opts); break;
-  case 'status':       runStatus(opts); break;
-  case 'doctor':       runDoctor(opts); break;
-  case 'update':       runUpdate(opts); break;
-  case 'sessions':     runSessions(opts); break;
-  case 'resume':       runResume(subcommand, opts); break;
-  case 'uninstall':    runUninstall(opts); break;
-  case 'login':        runLogin(opts); break;
-  case 'push':         runPush(restArgs.length > 0 ? restArgs : undefined, opts); break;
-  case 'pull':         runPull(opts); break;
-  case 'security':     runSecurity(subcommand, opts); break;
-  case '--version':    showVersion(); break;
-  case '--help': case '-h': case undefined:
-    showHelp(); break;
-  default:
-    console.error(`\n  ${style('Unknown command:', C.red)} ${command}`);
-    console.error(`  Run ${style('cup --help', C.cyan)} for usage\n`);
-    process.exit(1);
+async function dispatch(): Promise<void> {
+  switch (command) {
+    case 'init':         await runInit(opts); break;
+    case 'install':      await runInstall(subcommand, opts); break;
+    case 'project-init': runProjectInit(opts); break;
+    case 'clone':        await runClone(opts); break;
+    case 'backup':       await runBackup(opts); break;
+    case 'restore':      await runRestore(subcommand, opts); break;
+    case 'status':       runStatus(opts); break;
+    case 'doctor':       runDoctor(opts); break;
+    case 'update':       await runUpdate(opts); break;
+    case 'sessions':     runSessions(opts); break;
+    case 'resume':       await runResume(subcommand, opts); break;
+    case 'uninstall':    await runUninstall(opts); break;
+    case 'login':        await runLogin(opts); break;
+    case 'push':         await runPush(restArgs.length > 0 ? restArgs : undefined, opts); break;
+    case 'pull':         await runPull(opts); break;
+    case 'security':     await runSecurity(subcommand, opts); break;
+    case '--version':    showVersion(); break;
+    case '--help': case '-h': case undefined:
+      showHelp(); break;
+    default:
+      console.error(`\n  ${style('Unknown command:', C.red)} ${command}`);
+      console.error(`  Run ${style('cup --help', C.cyan)} for usage\n`);
+      process.exit(1);
+  }
 }
+
+dispatch().catch((err: unknown) => {
+  const msg = err instanceof Error ? err.message : String(err);
+  console.error(`\n  ${style('ERROR:', C.red)} ${msg}\n`);
+  process.exit(1);
+});

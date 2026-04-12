@@ -200,8 +200,7 @@ function checkSystem(verbose) {
     const warn = (msg) => { console.log(`  ${(0, ui_1.style)('!', ui_1.C.yellow)} ${msg}`); warnings++; };
     const fail = (msg) => { console.log(`  ${(0, ui_1.style)('✗', ui_1.C.red)} ${msg}`); failures++; };
     // Home-dir secrets
-    const HOME = require('os').homedir();
-    const npmrc = path.join(HOME, '.npmrc');
+    const npmrc = path.join(utils_1.HOME_DIR, '.npmrc');
     if (fs.existsSync(npmrc)) {
         const mode = fs.statSync(npmrc).mode & 0o777;
         const content = fs.readFileSync(npmrc, 'utf-8');

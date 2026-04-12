@@ -40,17 +40,16 @@ const child_process_1 = require("child_process");
 const utils_1 = require("../utils");
 const ui_1 = require("../ui");
 const base_1 = require("./base");
-const HOME = require('os').homedir();
 class ClaudeProvider {
     constructor() {
         this.name = 'claude';
         this.displayName = 'Claude Code';
         this.cliCommand = 'claude';
-        this.homeDir = path.join(HOME, '.claude');
+        this.homeDir = path.join(utils_1.HOME_DIR, '.claude');
         this.projectDir = '.claude';
         this.settingsFileName = 'settings.json';
         this.instructionFileName = 'CLAUDE.md';
-        this.skillsDir = path.join(HOME, '.claude', 'skills');
+        this.skillsDir = path.join(utils_1.HOME_DIR, '.claude', 'skills');
     }
     // --- Detection ---
     isInstalled() {
@@ -76,7 +75,10 @@ class ClaudeProvider {
         (0, utils_1.writeJson)(this.getSettingsPath(), data);
     }
     // --- Permissions ---
-    mergePermissions(intents) {
+    // Note: intents parameter is currently unused — Claude permissions are
+    // sourced entirely from presets/claude.json. The interface keeps the
+    // parameter for future intent-based merging across providers.
+    mergePermissions(_intents) {
         const preset = this.loadPreset();
         const presetPerms = preset.permissions;
         const settings = this.readSettings() || {};

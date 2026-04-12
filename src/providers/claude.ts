@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { execFileSync } from 'child_process';
-import { readJson, writeJson, backup, parseSimpleYaml, PACKAGE_ROOT } from '../utils';
+import { readJson, writeJson, backup, parseSimpleYaml, PACKAGE_ROOT, HOME_DIR } from '../utils';
 import { progressLine, ask, checkbox, C, style } from '../ui';
 import type { CheckboxItem } from '../ui';
 import type { Provider, ProviderName, PermissionIntents, PluginInfo, SessionInfo, SessionOpts, SyncKeys, InitStep, StepResult, SecurityLevelConfig } from './types';
@@ -18,17 +18,15 @@ import {
   removeSecurityBlockFromFile,
 } from './base';
 
-const HOME = require('os').homedir();
-
 export class ClaudeProvider implements Provider {
   readonly name: ProviderName = 'claude';
   readonly displayName = 'Claude Code';
   readonly cliCommand = 'claude';
-  readonly homeDir = path.join(HOME, '.claude');
+  readonly homeDir = path.join(HOME_DIR, '.claude');
   readonly projectDir = '.claude';
   readonly settingsFileName = 'settings.json';
   readonly instructionFileName = 'CLAUDE.md';
-  readonly skillsDir = path.join(HOME, '.claude', 'skills');
+  readonly skillsDir = path.join(HOME_DIR, '.claude', 'skills');
 
   // --- Detection ---
 
@@ -61,7 +59,10 @@ export class ClaudeProvider implements Provider {
 
   // --- Permissions ---
 
-  mergePermissions(intents: PermissionIntents): void {
+  // Note: intents parameter is currently unused — Claude permissions are
+  // sourced entirely from presets/claude.json. The interface keeps the
+  // parameter for future intent-based merging across providers.
+  mergePermissions(_intents: PermissionIntents): void {
     const preset = this.loadPreset();
     const presetPerms = preset.permissions as { allow?: string[]; deny?: string[] } | undefined;
     const settings = this.readSettings() || {};

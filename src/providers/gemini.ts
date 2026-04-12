@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { execFileSync } from 'child_process';
-import { readJson, writeJson, backup, parseSimpleYaml, PACKAGE_ROOT } from '../utils';
+import { readJson, writeJson, backup, parseSimpleYaml, PACKAGE_ROOT, HOME_DIR } from '../utils';
 import { progressLine, ask, checkbox, C, style } from '../ui';
 import type { CheckboxItem } from '../ui';
 import type { Provider, ProviderName, PermissionIntents, PluginInfo, SessionInfo, SessionOpts, SyncKeys, InitStep, StepResult, SecurityLevelConfig } from './types';
@@ -17,17 +17,15 @@ import {
   removeSecurityBlockFromFile,
 } from './base';
 
-const HOME = require('os').homedir();
-
 export class GeminiProvider implements Provider {
   readonly name: ProviderName = 'gemini';
   readonly displayName = 'Gemini CLI';
   readonly cliCommand = 'gemini';
-  readonly homeDir = path.join(HOME, '.gemini');
+  readonly homeDir = path.join(HOME_DIR, '.gemini');
   readonly projectDir = '.gemini';
   readonly settingsFileName = 'settings.json';
   readonly instructionFileName = 'GEMINI.md';
-  readonly skillsDir = path.join(HOME, '.gemini', 'skills');
+  readonly skillsDir = path.join(HOME_DIR, '.gemini', 'skills');
 
   // --- Detection ---
 

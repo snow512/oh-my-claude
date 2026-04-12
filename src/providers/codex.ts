@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { execFileSync } from 'child_process';
-import { readJson, writeJson, backup, parseSimpleYaml, PACKAGE_ROOT } from '../utils';
+import { readJson, writeJson, backup, parseSimpleYaml, PACKAGE_ROOT, HOME_DIR } from '../utils';
 import { progressLine, ask, checkbox, C, style } from '../ui';
 import type { CheckboxItem } from '../ui';
 import type { Provider, ProviderName, PermissionIntents, PluginInfo, SessionInfo, SessionOpts, SyncKeys, InitStep, StepResult, SecurityLevelConfig } from './types';
@@ -20,17 +20,15 @@ import {
 let TOML: { parse: (s: string) => Record<string, unknown>; stringify: (o: Record<string, unknown>) => string } | null = null;
 try { TOML = require('smol-toml'); } catch {}
 
-const HOME = require('os').homedir();
-
 export class CodexProvider implements Provider {
   readonly name: ProviderName = 'codex';
   readonly displayName = 'Codex CLI';
   readonly cliCommand = 'codex';
-  readonly homeDir = path.join(HOME, '.codex');
+  readonly homeDir = path.join(HOME_DIR, '.codex');
   readonly projectDir = '.codex';
   readonly settingsFileName = 'config.toml';
   readonly instructionFileName = 'AGENTS.md';
-  readonly skillsDir = path.join(HOME, '.agents', 'skills');
+  readonly skillsDir = path.join(HOME_DIR, '.agents', 'skills');
 
   // --- Detection ---
 

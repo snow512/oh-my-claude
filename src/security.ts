@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { execFileSync } from 'child_process';
 import { renderBanner, ask, C, style } from './ui';
-import { readJson, PACKAGE_ROOT } from './utils';
+import { readJson, PACKAGE_ROOT, HOME_DIR } from './utils';
 import { resolveProviders } from './providers/registry';
 import type { Provider, SecurityLevelConfig } from './providers/types';
 import type { Opts } from './installer';
@@ -188,8 +188,7 @@ function checkSystem(verbose: boolean): CheckResult {
   const fail = (msg: string): void => { console.log(`  ${style('✗', C.red)} ${msg}`); failures++; };
 
   // Home-dir secrets
-  const HOME = require('os').homedir();
-  const npmrc = path.join(HOME, '.npmrc');
+  const npmrc = path.join(HOME_DIR, '.npmrc');
   if (fs.existsSync(npmrc)) {
     const mode = fs.statSync(npmrc).mode & 0o777;
     const content = fs.readFileSync(npmrc, 'utf-8');

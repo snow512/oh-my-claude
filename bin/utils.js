@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PACKAGE_ROOT = void 0;
+exports.HOME_DIR = exports.PACKAGE_ROOT = void 0;
 exports.readJson = readJson;
 exports.writeJson = writeJson;
 exports.copyDirRecursive = copyDirRecursive;
@@ -42,9 +42,11 @@ exports.timestamp = timestamp;
 exports.backup = backup;
 exports.parseSimpleYaml = parseSimpleYaml;
 const fs = __importStar(require("fs"));
+const os = __importStar(require("os"));
 const path = __importStar(require("path"));
 // --- Constants ---
 exports.PACKAGE_ROOT = path.resolve(__dirname, '..');
+exports.HOME_DIR = os.homedir();
 // --- JSON I/O ---
 function readJson(filePath) {
     try {

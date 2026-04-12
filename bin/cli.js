@@ -100,65 +100,72 @@ function showVersion() {
     console.log(`claude-up v${pkg.version}`);
 }
 // --- Route ---
-switch (command) {
-    case 'init':
-        (0, installer_1.runInit)(opts);
-        break;
-    case 'install':
-        (0, installer_1.runInstall)(subcommand, opts);
-        break;
-    case 'project-init':
-        (0, installer_1.runProjectInit)(opts);
-        break;
-    case 'clone':
-        (0, installer_1.runClone)(opts);
-        break;
-    case 'backup':
-        (0, installer_1.runBackup)(opts);
-        break;
-    case 'restore':
-        (0, installer_1.runRestore)(subcommand, opts);
-        break;
-    case 'status':
-        (0, installer_1.runStatus)(opts);
-        break;
-    case 'doctor':
-        (0, installer_1.runDoctor)(opts);
-        break;
-    case 'update':
-        (0, installer_1.runUpdate)(opts);
-        break;
-    case 'sessions':
-        (0, installer_1.runSessions)(opts);
-        break;
-    case 'resume':
-        (0, installer_1.runResume)(subcommand, opts);
-        break;
-    case 'uninstall':
-        (0, installer_1.runUninstall)(opts);
-        break;
-    case 'login':
-        (0, sync_1.runLogin)(opts);
-        break;
-    case 'push':
-        (0, sync_1.runPush)(restArgs.length > 0 ? restArgs : undefined, opts);
-        break;
-    case 'pull':
-        (0, sync_1.runPull)(opts);
-        break;
-    case 'security':
-        (0, security_1.runSecurity)(subcommand, opts);
-        break;
-    case '--version':
-        showVersion();
-        break;
-    case '--help':
-    case '-h':
-    case undefined:
-        showHelp();
-        break;
-    default:
-        console.error(`\n  ${(0, ui_1.style)('Unknown command:', ui_1.C.red)} ${command}`);
-        console.error(`  Run ${(0, ui_1.style)('cup --help', ui_1.C.cyan)} for usage\n`);
-        process.exit(1);
+async function dispatch() {
+    switch (command) {
+        case 'init':
+            await (0, installer_1.runInit)(opts);
+            break;
+        case 'install':
+            await (0, installer_1.runInstall)(subcommand, opts);
+            break;
+        case 'project-init':
+            (0, installer_1.runProjectInit)(opts);
+            break;
+        case 'clone':
+            await (0, installer_1.runClone)(opts);
+            break;
+        case 'backup':
+            await (0, installer_1.runBackup)(opts);
+            break;
+        case 'restore':
+            await (0, installer_1.runRestore)(subcommand, opts);
+            break;
+        case 'status':
+            (0, installer_1.runStatus)(opts);
+            break;
+        case 'doctor':
+            (0, installer_1.runDoctor)(opts);
+            break;
+        case 'update':
+            await (0, installer_1.runUpdate)(opts);
+            break;
+        case 'sessions':
+            (0, installer_1.runSessions)(opts);
+            break;
+        case 'resume':
+            await (0, installer_1.runResume)(subcommand, opts);
+            break;
+        case 'uninstall':
+            await (0, installer_1.runUninstall)(opts);
+            break;
+        case 'login':
+            await (0, sync_1.runLogin)(opts);
+            break;
+        case 'push':
+            await (0, sync_1.runPush)(restArgs.length > 0 ? restArgs : undefined, opts);
+            break;
+        case 'pull':
+            await (0, sync_1.runPull)(opts);
+            break;
+        case 'security':
+            await (0, security_1.runSecurity)(subcommand, opts);
+            break;
+        case '--version':
+            showVersion();
+            break;
+        case '--help':
+        case '-h':
+        case undefined:
+            showHelp();
+            break;
+        default:
+            console.error(`\n  ${(0, ui_1.style)('Unknown command:', ui_1.C.red)} ${command}`);
+            console.error(`  Run ${(0, ui_1.style)('cup --help', ui_1.C.cyan)} for usage\n`);
+            process.exit(1);
+    }
 }
+dispatch().catch((err) => {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`\n  ${(0, ui_1.style)('ERROR:', ui_1.C.red)} ${msg}\n`);
+    process.exit(1);
+});
