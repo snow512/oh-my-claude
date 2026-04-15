@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { runInit, runProjectInit, runInstall, runClone, runBackup, runRestore, runStatus, runDoctor, runUpdate, runSessions, runResume, runUninstall } from './installer';
+import { runInit, runProjectInit, runInstall, runClone, runBackup, runRestore, runStatus, runDoctor, runUpdate, runSessions, runResume, runUninstall, runClean } from './installer';
 import type { Opts } from './installer';
 import { renderBanner, C, style } from './ui';
 import { runLogin, runPush, runPull } from './sync';
@@ -33,6 +33,7 @@ const opts: Opts = {
   limit:    parseInt(getFlag('limit') || '10', 10),
   provider: getFlag('provider') || undefined,
   level:    getFlag('level') || undefined,
+  type:     getFlag('type') || undefined,
 };
 
 // --- Help ---
@@ -81,10 +82,14 @@ function showHelp(): void {
   console.log(`  ${style('Environment', b)}`);
   console.log(`    ${style('clone', c)}             Export ~/.claude/ as portable package`);
   console.log(`      ${style('--output=<dir>', g)}  Output directory`);
-  console.log(`    ${style('backup', c)}            Snapshot ~/.claude/ to .tar.gz`);
+  console.log(`    ${style('backup', c)}            Snapshot environment to archive`);
+  console.log(`      ${style('--type=<all|cup>', g)} all = full .tar.gz (default); cup = zip of cup files`);
   console.log(`      ${style('--output=<file>', g)} Output file path`);
-  console.log(`    ${style('restore', c)} <file>    Restore from backup`);
+  console.log(`    ${style('restore', c)} [file]    Restore from backup`);
+  console.log(`      ${style('--type=<all|cup>', g)} all (default) = tar.gz/folder; cup = zip (auto-picks latest)`);
   console.log(`      ${style('--force, -f', g)}     Skip backup of current settings`);
+  console.log(`    ${style('clean', c)}             Back up (cup) then remove cup-managed files`);
+  console.log(`      ${style('--yes, -y', g)}       Skip confirmation`);
   console.log(`    ${style('uninstall', c)}         Remove claude-up (skills, settings, CLAUDE.md)`);
   console.log(`      ${style('--yes, -y', g)}       Remove everything without asking\n`);
 
@@ -133,6 +138,7 @@ async function dispatch(): Promise<void> {
     case 'sessions':     runSessions(opts); break;
     case 'resume':       await runResume(subcommand, opts); break;
     case 'uninstall':    await runUninstall(opts); break;
+    case 'clean':        await runClean(opts); break;
     case 'login':        await runLogin(opts); break;
     case 'push':         await runPush(restArgs.length > 0 ? restArgs : undefined, opts); break;
     case 'pull':         await runPull(opts); break;

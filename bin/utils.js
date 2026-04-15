@@ -39,6 +39,7 @@ exports.writeJson = writeJson;
 exports.copyDirRecursive = copyDirRecursive;
 exports.isDirChanged = isDirChanged;
 exports.timestamp = timestamp;
+exports.humanTimestamp = humanTimestamp;
 exports.backup = backup;
 exports.parseSimpleYaml = parseSimpleYaml;
 const fs = __importStar(require("fs"));
@@ -106,6 +107,11 @@ function isDirChanged(srcDir, destDir) {
 }
 function timestamp() {
     return new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+}
+function humanTimestamp() {
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}-${p(d.getHours())}-${p(d.getMinutes())}-${p(d.getSeconds())}`;
 }
 function backup(filePath) {
     try {

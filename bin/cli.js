@@ -29,6 +29,7 @@ const opts = {
     limit: parseInt(getFlag('limit') || '10', 10),
     provider: getFlag('provider') || undefined,
     level: getFlag('level') || undefined,
+    type: getFlag('type') || undefined,
 };
 // --- Help ---
 function showHelp() {
@@ -69,10 +70,14 @@ function showHelp() {
     console.log(`  ${(0, ui_1.style)('Environment', b)}`);
     console.log(`    ${(0, ui_1.style)('clone', c)}             Export ~/.claude/ as portable package`);
     console.log(`      ${(0, ui_1.style)('--output=<dir>', g)}  Output directory`);
-    console.log(`    ${(0, ui_1.style)('backup', c)}            Snapshot ~/.claude/ to .tar.gz`);
+    console.log(`    ${(0, ui_1.style)('backup', c)}            Snapshot environment to archive`);
+    console.log(`      ${(0, ui_1.style)('--type=<all|cup>', g)} all = full .tar.gz (default); cup = zip of cup files`);
     console.log(`      ${(0, ui_1.style)('--output=<file>', g)} Output file path`);
-    console.log(`    ${(0, ui_1.style)('restore', c)} <file>    Restore from backup`);
+    console.log(`    ${(0, ui_1.style)('restore', c)} [file]    Restore from backup`);
+    console.log(`      ${(0, ui_1.style)('--type=<all|cup>', g)} all (default) = tar.gz/folder; cup = zip (auto-picks latest)`);
     console.log(`      ${(0, ui_1.style)('--force, -f', g)}     Skip backup of current settings`);
+    console.log(`    ${(0, ui_1.style)('clean', c)}             Back up (cup) then remove cup-managed files`);
+    console.log(`      ${(0, ui_1.style)('--yes, -y', g)}       Skip confirmation`);
     console.log(`    ${(0, ui_1.style)('uninstall', c)}         Remove claude-up (skills, settings, CLAUDE.md)`);
     console.log(`      ${(0, ui_1.style)('--yes, -y', g)}       Remove everything without asking\n`);
     console.log(`  ${(0, ui_1.style)('Sync', b)}`);
@@ -137,6 +142,9 @@ async function dispatch() {
             break;
         case 'uninstall':
             await (0, installer_1.runUninstall)(opts);
+            break;
+        case 'clean':
+            await (0, installer_1.runClean)(opts);
             break;
         case 'login':
             await (0, sync_1.runLogin)(opts);

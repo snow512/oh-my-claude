@@ -59,6 +59,12 @@ export function timestamp(): string {
   return new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
 }
 
+export function humanTimestamp(): string {
+  const d = new Date();
+  const p = (n: number): string => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}-${p(d.getHours())}-${p(d.getMinutes())}-${p(d.getSeconds())}`;
+}
+
 export function backup(filePath: string): string | null {
   try {
     const bakPath = `${filePath}.bak.${timestamp()}`;

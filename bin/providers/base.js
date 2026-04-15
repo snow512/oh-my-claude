@@ -230,4 +230,15 @@ function installSkillWithMeta(skillDir, destDir, lang, metaFileName, fallbackMet
     }
     fs.mkdirSync(destDir, { recursive: true });
     fs.writeFileSync(path.join(destDir, 'SKILL.md'), content);
+    const scriptsSrc = path.join(skillDir, 'scripts');
+    if (fs.existsSync(scriptsSrc) && fs.statSync(scriptsSrc).isDirectory()) {
+        const scriptsDst = path.join(destDir, 'scripts');
+        fs.rmSync(scriptsDst, { recursive: true, force: true });
+        fs.cpSync(scriptsSrc, scriptsDst, { recursive: true });
+        for (const entry of fs.readdirSync(scriptsDst, { withFileTypes: true })) {
+            if (entry.isFile() && entry.name.endsWith('.sh')) {
+                fs.chmodSync(path.join(scriptsDst, entry.name), 0o755);
+            }
+        }
+    }
 }

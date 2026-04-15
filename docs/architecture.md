@@ -22,7 +22,7 @@ Terminal              Claude Code session
 claude-up/
 ├── src/
 │   ├── cli.ts                  # CLI entry (arg parse + command routing)
-│   ├── installer.ts            # init/install/project-init/clone/backup/restore/status/doctor/update/sessions/resume/uninstall
+│   ├── installer.ts            # init/install/project-init/clone/backup/restore/clean/status/doctor/update/sessions/resume/uninstall
 │   ├── sync.ts                 # login/push/pull (GitHub Gist cloud sync)
 │   ├── ui.ts                   # Terminal UI (colors, banner, spinner, checkbox, ask)
 │   ├── utils.ts                # Shared utilities (readJson, writeJson, backup, parseSimpleYaml)

@@ -38,6 +38,7 @@ exports.runInit = runInit;
 exports.runInstall = runInstall;
 exports.runProjectInit = runProjectInit;
 exports.runClone = runClone;
+exports.createCupBackup = createCupBackup;
 exports.runBackup = runBackup;
 exports.runRestore = runRestore;
 exports.runStatus = runStatus;
@@ -46,6 +47,7 @@ exports.runUpdate = runUpdate;
 exports.runSessions = runSessions;
 exports.runResume = runResume;
 exports.runUninstall = runUninstall;
+exports.runClean = runClean;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const readline = __importStar(require("readline"));
@@ -93,9 +95,15 @@ async function runInit(opts = {}) {
         if (providers.length > 1) {
             console.log(`\n  ${(0, ui_1.style)(`── ${provider.displayName} ──`, ui_1.C.bold, ui_1.C.cyan)}`);
         }
-        const bakPath = provider.backupSettings();
-        if (bakPath)
-            console.log(`\n  ${(0, ui_1.style)('💾', ui_1.C.gray)} ${(0, ui_1.style)('Backup: ' + bakPath, ui_1.C.gray)}`);
+        try {
+            const zipPath = await createCupBackup(provider);
+            if (zipPath)
+                console.log(`\n  ${(0, ui_1.style)('💾', ui_1.C.gray)} ${(0, ui_1.style)('Cup backup: ' + zipPath, ui_1.C.gray)}`);
+        }
+        catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            console.log(`\n  ${(0, ui_1.style)('⚠', ui_1.C.yellow)} ${(0, ui_1.style)('Cup backup skipped: ' + msg, ui_1.C.gray)}`);
+        }
         const steps = provider.getInitSteps();
         const totalSteps = steps.length + 1; // +1 for security step
         const results = [];
@@ -300,10 +308,81 @@ async function runClone(opts = {}) {
     }
 }
 // --- Backup ---
+function getRepoSkillNames() {
+    const names = new Set();
+    try {
+        for (const e of fs.readdirSync(path.join(utils_1.PACKAGE_ROOT, 'user-skills'), { withFileTypes: true })) {
+            if (e.isDirectory())
+                names.add(e.name);
+        }
+    }
+    catch { }
+    return names;
+}
+/** Returns HOME_DIR-relative paths for files/dirs that `cup init` creates or modifies. */
+function getCupManagedRelPaths(provider) {
+    const rel = (abs) => path.relative(utils_1.HOME_DIR, abs);
+    const result = [];
+    const settingsPath = path.join(provider.homeDir, provider.settingsFileName);
+    if (fs.existsSync(settingsPath))
+        result.push(rel(settingsPath));
+    if (provider.hasStatusLine) {
+        const slPath = path.join(provider.homeDir, 'statusline-command.sh');
+        if (fs.existsSync(slPath))
+            result.push(rel(slPath));
+    }
+    try {
+        const instrPath = provider.getInstructionFilePath('global');
+        if (fs.existsSync(instrPath))
+            result.push(rel(instrPath));
+    }
+    catch { }
+    const repoSkills = getRepoSkillNames();
+    for (const name of provider.getInstalledSkills()) {
+        if (repoSkills.has(name)) {
+            const skillPath = path.join(provider.skillsDir, name);
+            if (fs.existsSync(skillPath))
+                result.push(rel(skillPath));
+        }
+    }
+    return result.filter(p => !p.startsWith('..'));
+}
+/** Creates a cup-scope zip backup at ~/.claude/cup/backups/<timestamp>.zip. Returns the zip path, or null if nothing to back up. */
+async function createCupBackup(provider, outputOverride) {
+    const relPaths = getCupManagedRelPaths(provider);
+    if (relPaths.length === 0)
+        return null;
+    const backupsDir = path.join(provider.homeDir, 'cup', 'backups');
+    fs.mkdirSync(backupsDir, { recursive: true });
+    const zipPath = outputOverride || path.join(backupsDir, `${(0, utils_1.humanTimestamp)()}.zip`);
+    fs.mkdirSync(path.dirname(zipPath), { recursive: true });
+    await (0, ui_1.progressLine)(`Zipping cup files → ${path.basename(zipPath)}`, () => {
+        (0, child_process_1.execFileSync)('zip', ['-rq', zipPath, ...relPaths], { cwd: utils_1.HOME_DIR, stdio: 'pipe' });
+    });
+    return zipPath;
+}
 async function runBackup(opts = {}) {
     (0, ui_1.renderBanner)();
     const providers = (0, registry_1.resolveProviders)(opts.provider);
+    const type = opts.type || 'all';
+    if (type !== 'all' && type !== 'cup') {
+        console.error(`  ${(0, ui_1.style)('ERROR:', ui_1.C.red)} --type must be "all" or "cup"\n`);
+        process.exit(1);
+    }
     for (const provider of providers) {
+        if (type === 'cup') {
+            console.log(`  ${(0, ui_1.style)(`Creating ${provider.displayName} cup backup...`, ui_1.C.bold)}\n`);
+            const zipPath = await createCupBackup(provider, opts.output);
+            if (!zipPath) {
+                console.log(`  ${(0, ui_1.style)('ℹ', ui_1.C.cyan)} Nothing to back up — no cup-managed files found.\n`);
+                continue;
+            }
+            const size = fs.statSync(zipPath).size;
+            const sizeStr = size > 1048576 ? `${(size / 1048576).toFixed(1)} MB` : `${(size / 1024).toFixed(0)} KB`;
+            console.log(`\n  ${(0, ui_1.style)('✓', ui_1.C.green)} ${(0, ui_1.style)('Cup backup created:', ui_1.C.bold)} ${(0, ui_1.style)(zipPath, ui_1.C.cyan)}`);
+            console.log(`  ${(0, ui_1.style)('Size:', ui_1.C.gray)} ${sizeStr}\n`);
+            continue;
+        }
         const tarPath = opts.output || path.join(process.cwd(), `${provider.name}-backup-${(0, utils_1.timestamp)()}.tar.gz`);
         console.log(`  ${(0, ui_1.style)(`Creating ${provider.displayName} backup...`, ui_1.C.bold)}\n`);
         const excludes = provider.getBackupExcludes();
@@ -320,6 +399,43 @@ async function runBackup(opts = {}) {
 // --- Restore ---
 async function runRestore(source, opts = {}) {
     (0, ui_1.renderBanner)();
+    const type = opts.type || 'all';
+    if (type !== 'all' && type !== 'cup') {
+        console.error(`  ${(0, ui_1.style)('ERROR:', ui_1.C.red)} --type must be "all" or "cup"\n`);
+        process.exit(1);
+    }
+    const provider = opts.provider ? (0, registry_1.resolveProviders)(opts.provider)[0] : (0, registry_1.getProvider)('claude');
+    if (type === 'cup') {
+        if (!source) {
+            const backupsDir = path.join(provider.homeDir, 'cup', 'backups');
+            if (!fs.existsSync(backupsDir)) {
+                console.error(`  ${(0, ui_1.style)('ERROR:', ui_1.C.red)} No cup backups directory: ${backupsDir}\n`);
+                process.exit(1);
+            }
+            const zips = fs.readdirSync(backupsDir).filter(f => f.endsWith('.zip')).sort();
+            if (zips.length === 0) {
+                console.error(`  ${(0, ui_1.style)('ERROR:', ui_1.C.red)} No .zip backups found in ${backupsDir}\n`);
+                process.exit(1);
+            }
+            source = path.join(backupsDir, zips[zips.length - 1]);
+            console.log(`  ${(0, ui_1.style)('Using latest:', ui_1.C.gray)} ${(0, ui_1.style)(source, ui_1.C.cyan)}\n`);
+        }
+        if (!fs.existsSync(source)) {
+            console.error(`  ${(0, ui_1.style)('ERROR:', ui_1.C.red)} Not found: ${source}\n`);
+            process.exit(1);
+        }
+        if (!opts.force) {
+            const b = provider.backupSettings();
+            if (b)
+                console.log(`  ${(0, ui_1.style)('💾', ui_1.C.gray)} ${(0, ui_1.style)('Safety backup: ' + b, ui_1.C.gray)}\n`);
+        }
+        console.log(`  ${(0, ui_1.style)('Restoring cup backup...', ui_1.C.bold)}\n`);
+        await (0, ui_1.progressLine)('Extracting zip', () => {
+            (0, child_process_1.execFileSync)('unzip', ['-oq', path.resolve(source), '-d', utils_1.HOME_DIR], { stdio: 'pipe' });
+        });
+        console.log(`\n  ${(0, ui_1.style)('✓', ui_1.C.green)} ${(0, ui_1.style)('Cup restore complete', ui_1.C.bold)}\n`);
+        return;
+    }
     if (!source) {
         console.error(`  ${(0, ui_1.style)('ERROR:', ui_1.C.red)} Please specify a backup file or clone folder\n`);
         process.exit(1);
@@ -328,8 +444,6 @@ async function runRestore(source, opts = {}) {
         console.error(`  ${(0, ui_1.style)('ERROR:', ui_1.C.red)} Not found: ${source}\n`);
         process.exit(1);
     }
-    // For restore, default to Claude provider (backward compat)
-    const provider = opts.provider ? (0, registry_1.resolveProviders)(opts.provider)[0] : (0, registry_1.getProvider)('claude');
     const stat = fs.statSync(source);
     if (!opts.force) {
         const b = provider.backupSettings();
@@ -854,5 +968,93 @@ async function runUninstall(opts = {}) {
         }
         console.log(`\n  ${(0, ui_1.style)('✓', ui_1.C.green)} ${(0, ui_1.style)('Uninstall complete', ui_1.C.bold)}`);
         console.log(`  ${(0, ui_1.style)('Note:', ui_1.C.gray)} ${provider.settingsFileName} and ~/${path.basename(provider.homeDir)}/ directory are preserved.\n`);
+    }
+}
+// --- Clean ---
+async function runClean(opts = {}) {
+    (0, ui_1.renderBanner)();
+    const providers = (0, registry_1.resolveProviders)(opts.provider);
+    for (const provider of providers) {
+        if (providers.length > 1) {
+            console.log(`  ${(0, ui_1.style)(`── ${provider.displayName} ──`, ui_1.C.bold, ui_1.C.cyan)}\n`);
+        }
+        else {
+            console.log(`  ${(0, ui_1.style)('Cleaning cup-managed files...', ui_1.C.bold)}\n`);
+        }
+        const relPaths = getCupManagedRelPaths(provider);
+        if (relPaths.length === 0) {
+            console.log(`  ${(0, ui_1.style)('ℹ', ui_1.C.cyan)} Nothing to clean.\n`);
+            continue;
+        }
+        const repoSkills = getRepoSkillNames();
+        const cupSkills = provider.getInstalledSkills().filter(s => repoSkills.has(s));
+        const instrPath = provider.getInstructionFilePath('global');
+        const slPath = path.join(provider.homeDir, 'statusline-command.sh');
+        const settingsPath = path.join(provider.homeDir, provider.settingsFileName);
+        console.log(`  Will back up then remove:`);
+        console.log(`    • ${cupSkills.length} cup skills`);
+        if (fs.existsSync(settingsPath))
+            console.log(`    • ${provider.settingsFileName} — cup keys only`);
+        if (provider.hasStatusLine && fs.existsSync(slPath))
+            console.log(`    • statusline-command.sh`);
+        if (fs.existsSync(instrPath))
+            console.log(`    • ${provider.instructionFileName} — cup block only`);
+        console.log('');
+        if (!opts.yes && !(await (0, ui_1.ask)('Proceed?', true))) {
+            console.log(`  ${(0, ui_1.style)('Cancelled.', ui_1.C.gray)}\n`);
+            continue;
+        }
+        let zipPath = null;
+        try {
+            zipPath = await createCupBackup(provider);
+        }
+        catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            console.error(`\n  ${(0, ui_1.style)('Backup failed:', ui_1.C.red)} ${msg}`);
+            console.error(`  ${(0, ui_1.style)('Aborted — nothing removed.', ui_1.C.gray)}\n`);
+            continue;
+        }
+        if (zipPath)
+            console.log(`\n  ${(0, ui_1.style)('💾', ui_1.C.gray)} ${(0, ui_1.style)('Backup: ' + zipPath, ui_1.C.gray)}\n`);
+        for (const name of cupSkills) {
+            fs.rmSync(path.join(provider.skillsDir, name), { recursive: true, force: true });
+        }
+        if (cupSkills.length > 0)
+            console.log(`  ${(0, ui_1.style)('✓', ui_1.C.green)} ${cupSkills.length} cup skills removed`);
+        const block = provider.readCupBlock();
+        if (block && fs.existsSync(instrPath)) {
+            const content = fs.readFileSync(instrPath, 'utf-8');
+            const CUP_START = '<!-- <cup>';
+            const CUP_END = '<!-- </cup> -->';
+            const s = content.indexOf(CUP_START);
+            const e = content.indexOf(CUP_END);
+            if (s !== -1 && e !== -1) {
+                const cleaned = (content.slice(0, s) + content.slice(e + CUP_END.length)).replace(/\n{3,}/g, '\n\n').trim();
+                fs.writeFileSync(instrPath, cleaned + '\n');
+                console.log(`  ${(0, ui_1.style)('✓', ui_1.C.green)} ${provider.instructionFileName} — cup section removed`);
+            }
+        }
+        if (provider.hasStatusLine && fs.existsSync(slPath)) {
+            fs.unlinkSync(slPath);
+            console.log(`  ${(0, ui_1.style)('✓', ui_1.C.green)} Status line removed`);
+        }
+        const settings = provider.readSettings();
+        if (settings) {
+            let changed = false;
+            for (const key of ['permissions', 'enabledPlugins', 'extraKnownMarketplaces', 'statusLine']) {
+                if (settings[key] !== undefined) {
+                    delete settings[key];
+                    changed = true;
+                }
+            }
+            if (changed) {
+                provider.writeSettings(settings);
+                console.log(`  ${(0, ui_1.style)('✓', ui_1.C.green)} Cup keys cleared from ${provider.settingsFileName}`);
+            }
+        }
+        console.log(`\n  ${(0, ui_1.style)('✓', ui_1.C.green)} ${(0, ui_1.style)('Clean complete', ui_1.C.bold)}`);
+        if (zipPath) {
+            console.log(`  ${(0, ui_1.style)('Restore with:', ui_1.C.gray)} ${(0, ui_1.style)(`cup restore --type=cup`, ui_1.C.cyan)}\n`);
+        }
     }
 }

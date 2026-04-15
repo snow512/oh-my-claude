@@ -65,8 +65,9 @@ cup doctor [--provider=...] [--verbose]
 
 # Environment
 cup clone [--provider=...] [--output=<dir>]
-cup backup [--provider=...] [--output=<file>]
-cup restore <file> [--provider=...] [--force]
+cup backup [--type=all|cup] [--provider=...] [--output=<file>]
+cup restore [file] [--type=all|cup] [--provider=...] [--force]
+cup clean [--provider=...] [--yes]
 cup uninstall [--provider=...] [--yes]
 
 # Sync
