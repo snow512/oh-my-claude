@@ -90,12 +90,16 @@ cup security                                # Security subcommand help
 cup security init [--level=loose|normal|strict]  # Apply security level
 cup security check [--verbose]              # Audit current security posture
 cup security diff [--level=...]             # Compare current vs target level
+cup guidance                                # Guidance subcommand help
+cup guidance init [--categories=...]        # Install instruction categories
+cup guidance list                           # Show available + installed categories
+cup guidance remove [--categories=...]      # Uninstall guidance categories
 ```
 
 Alias: `claude-up` = `cup`
 Auto-detect: `--provider` 미지정 시 설치된 도구 전부 대상
 
-## User Skills (14)
+## User Skills (15)
 
 | Skill | Trigger | Purpose |
 |-------|---------|---------|
@@ -105,6 +109,7 @@ Auto-detect: `--provider` 미지정 시 설치된 도구 전부 대상
 | commit-push | commit, push | Lint → update docs → commit → push |
 | doc-structure | document, update docs | Generate docs from source / update docs from changes |
 | enhance | harden, improve, unify UI | Active code hardening + UX improvement + UI consistency |
+| guidance-promote | promote guidance, 지침승격해 | Promote project-level LLM rules to user (global) instruction file |
 | merge-branch | merge, create PR | Direct merge to develop / PR for main·qa |
 | oneshot | 원스탑구현해, oneshot | Plan → implement → quality loop → test → commit (full pipeline) |
 | project-sync | pull, sync project | git pull + commit briefing + deps install + doc summary |

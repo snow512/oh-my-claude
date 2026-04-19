@@ -12,6 +12,7 @@ Available skills (say the trigger phrase to use):
 | commit-push | commit, push | 커푸, 커밋해 |
 | doc-structure | document, update docs | 문서화해, 문서정리해 |
 | enhance | harden, improve, unify UI | 보강해, 개선해, UI개선해 |
+| guidance-promote | promote guidance | 지침승격해, 이거 글로벌에 올려 |
 | merge-branch | merge, create PR | 머지해, PR올려 |
 | oneshot | oneshot, one-stop | 원스탑구현해, 한방에구현해 |
 | branch-sync | sync, pull from | 싱크해, 가져와 |
@@ -28,11 +29,5 @@ Skills store per-project memory in `.claude/settings.local.json`:
 ```json
 { "skills": { "skill-name": { "key": "value" } } }
 ```
-
-## Commit Rules
-
-- Conventional Commits: `feat:`, `fix:`, `refactor:`, `chore:`, `docs:`
-- Include `Co-Authored-By: Claude <noreply@anthropic.com>`
-- Follow the language of existing commit log
 
 <!-- </cup> -->

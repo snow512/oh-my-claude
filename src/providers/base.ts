@@ -12,6 +12,11 @@ export const CUP_END = '<!-- </cup> -->';
 export const CUP_SECURITY_START = '<!-- <cup-security>';
 export const CUP_SECURITY_END = '<!-- </cup-security> -->';
 
+export const guidanceMarkers = (category: string): { start: string; end: string } => ({
+  start: `<!-- <cup-guidance-${category}>`,
+  end: `<!-- </cup-guidance-${category}> -->`,
+});
+
 // --- Shared helpers ---
 
 /** Build a SKILL.md content by prepending YAML frontmatter from meta to the body. */
@@ -48,27 +53,27 @@ export function getAvailableSkillsFromRepo(providerName: ProviderName): Checkbox
   } catch { return []; }
 }
 
-/** Extract the cup-managed block from an instruction file. */
-export function readCupBlockFromFile(filePath: string): string | null {
+// Generic marker-block operations — used by cup, security, and guidance blocks.
+
+function readBlock(filePath: string, start: string, end: string): string | null {
   try {
     const content = fs.readFileSync(filePath, 'utf-8');
-    const start = content.indexOf(CUP_START);
-    const end = content.indexOf(CUP_END);
-    if (start === -1 || end === -1) return null;
-    return content.slice(start, end + CUP_END.length);
+    const s = content.indexOf(start);
+    const e = content.indexOf(end);
+    if (s === -1 || e === -1) return null;
+    return content.slice(s, e + end.length);
   } catch { return null; }
 }
 
-/** Insert or replace the cup-managed block in an instruction file. */
-export function writeCupBlockToFile(filePath: string, block: string): void {
+function writeBlock(filePath: string, start: string, end: string, block: string): void {
   let content = '';
   try { content = fs.readFileSync(filePath, 'utf-8'); } catch {}
 
-  const start = content.indexOf(CUP_START);
-  const end = content.indexOf(CUP_END);
+  const s = content.indexOf(start);
+  const e = content.indexOf(end);
 
-  if (start !== -1 && end !== -1) {
-    content = content.slice(0, start) + block + content.slice(end + CUP_END.length);
+  if (s !== -1 && e !== -1) {
+    content = content.slice(0, s) + block + content.slice(e + end.length);
   } else {
     content = content ? content.trimEnd() + '\n\n' + block + '\n' : block + '\n';
   }
@@ -77,49 +82,70 @@ export function writeCupBlockToFile(filePath: string, block: string): void {
   fs.writeFileSync(filePath, content);
 }
 
-/** Read the cup-security block from an instruction file. */
-export function readSecurityBlockFromFile(filePath: string): string | null {
-  try {
-    const content = fs.readFileSync(filePath, 'utf-8');
-    const start = content.indexOf(CUP_SECURITY_START);
-    const end = content.indexOf(CUP_SECURITY_END);
-    if (start === -1 || end === -1) return null;
-    return content.slice(start, end + CUP_SECURITY_END.length);
-  } catch { return null; }
-}
-
-/** Insert or replace the cup-security block in an instruction file. */
-export function writeSecurityBlockToFile(filePath: string, block: string): void {
-  let content = '';
-  try { content = fs.readFileSync(filePath, 'utf-8'); } catch {}
-
-  const start = content.indexOf(CUP_SECURITY_START);
-  const end = content.indexOf(CUP_SECURITY_END);
-
-  if (start !== -1 && end !== -1) {
-    content = content.slice(0, start) + block + content.slice(end + CUP_SECURITY_END.length);
-  } else {
-    content = content ? content.trimEnd() + '\n\n' + block + '\n' : block + '\n';
-  }
-
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, content);
-}
-
-/** Remove the cup-security block from an instruction file (keeps the rest). */
-export function removeSecurityBlockFromFile(filePath: string): void {
+function removeBlock(filePath: string, start: string, end: string): void {
   let content: string;
   try { content = fs.readFileSync(filePath, 'utf-8'); } catch { return; }
 
-  const start = content.indexOf(CUP_SECURITY_START);
-  const end = content.indexOf(CUP_SECURITY_END);
-  if (start === -1 || end === -1) return;
+  const s = content.indexOf(start);
+  const e = content.indexOf(end);
+  if (s === -1 || e === -1) return;
 
-  const cleaned = (content.slice(0, start) + content.slice(end + CUP_SECURITY_END.length))
+  const cleaned = (content.slice(0, s) + content.slice(e + end.length))
     .replace(/\n{3,}/g, '\n\n')
     .trimEnd() + '\n';
 
   fs.writeFileSync(filePath, cleaned);
+}
+
+/** Extract the cup-managed block from an instruction file. */
+export function readCupBlockFromFile(filePath: string): string | null {
+  return readBlock(filePath, CUP_START, CUP_END);
+}
+
+/** Insert or replace the cup-managed block in an instruction file. */
+export function writeCupBlockToFile(filePath: string, block: string): void {
+  writeBlock(filePath, CUP_START, CUP_END, block);
+}
+
+/** Read the cup-security block from an instruction file. */
+export function readSecurityBlockFromFile(filePath: string): string | null {
+  return readBlock(filePath, CUP_SECURITY_START, CUP_SECURITY_END);
+}
+
+/** Insert or replace the cup-security block in an instruction file. */
+export function writeSecurityBlockToFile(filePath: string, block: string): void {
+  writeBlock(filePath, CUP_SECURITY_START, CUP_SECURITY_END, block);
+}
+
+/** Remove the cup-security block from an instruction file (keeps the rest). */
+export function removeSecurityBlockFromFile(filePath: string): void {
+  removeBlock(filePath, CUP_SECURITY_START, CUP_SECURITY_END);
+}
+
+/** Read a guidance category block from an instruction file. */
+export function readGuidanceBlockFromFile(filePath: string, category: string): string | null {
+  const { start, end } = guidanceMarkers(category);
+  return readBlock(filePath, start, end);
+}
+
+/** Insert or replace a guidance category block in an instruction file. */
+export function writeGuidanceBlockToFile(filePath: string, category: string, block: string): void {
+  const { start, end } = guidanceMarkers(category);
+  writeBlock(filePath, start, end, block);
+}
+
+/** Remove a guidance category block from an instruction file. */
+export function removeGuidanceBlockFromFile(filePath: string, category: string): void {
+  const { start, end } = guidanceMarkers(category);
+  removeBlock(filePath, start, end);
+}
+
+/** List installed guidance categories by scanning an instruction file. */
+export function listInstalledGuidanceInFile(filePath: string): string[] {
+  let content: string;
+  try { content = fs.readFileSync(filePath, 'utf-8'); } catch { return []; }
+  const matches = content.matchAll(/<!-- <cup-guidance-([a-z0-9_-]+)>/g);
+  return Array.from(new Set(Array.from(matches, m => m[1])));
 }
 
 /** List simple file-based sessions from a directory (best-effort for Gemini/Codex). */

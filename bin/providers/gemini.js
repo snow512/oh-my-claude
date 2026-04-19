@@ -355,5 +355,18 @@ class GeminiProvider {
     removeSecurityBlock() {
         (0, base_1.removeSecurityBlockFromFile)(this.getInstructionFilePath('global'));
     }
+    // --- Guidance ---
+    readGuidanceBlock(category) {
+        return (0, base_1.readGuidanceBlockFromFile)(this.getInstructionFilePath('global'), category);
+    }
+    writeGuidanceBlock(category, block) {
+        (0, base_1.writeGuidanceBlockToFile)(this.getInstructionFilePath('global'), category, block);
+    }
+    removeGuidanceBlock(category) {
+        (0, base_1.removeGuidanceBlockFromFile)(this.getInstructionFilePath('global'), category);
+    }
+    listInstalledGuidance() {
+        return (0, base_1.listInstalledGuidanceInFile)(this.getInstructionFilePath('global'));
+    }
 }
 exports.GeminiProvider = GeminiProvider;

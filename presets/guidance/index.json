@@ -1,0 +1,9 @@
+{
+  "categories": [
+    { "id": "language", "title": "Language", "description": "Response language rules (Korean base, selective English)" },
+    { "id": "scope", "title": "Scope Discipline", "description": "Don't expand request scope; observation vs instruction" },
+    { "id": "design", "title": "Design Discipline", "description": "Block incremental patches on structural problems; explicit identity" },
+    { "id": "deployment", "title": "Deployment Safety", "description": "Require explicit approval for production deploys" },
+    { "id": "commit", "title": "Commit Rules", "description": "Conventional Commits + Co-Authored-By" }
+  ]
+}

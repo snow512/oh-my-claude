@@ -5,6 +5,7 @@ const installer_1 = require("./installer");
 const ui_1 = require("./ui");
 const sync_1 = require("./sync");
 const security_1 = require("./security");
+const guidance_1 = require("./guidance");
 // --- Parse args ---
 const args = process.argv.slice(2);
 const flags = new Set(args.filter(a => a.startsWith('-') && !a.includes('=')));
@@ -30,6 +31,7 @@ const opts = {
     provider: getFlag('provider') || undefined,
     level: getFlag('level') || undefined,
     type: getFlag('type') || undefined,
+    categories: getFlag('categories') || undefined,
 };
 // --- Help ---
 function showHelp() {
@@ -94,6 +96,14 @@ function showHelp() {
     console.log(`    ${(0, ui_1.style)('security check', c)}    Audit current security posture`);
     console.log(`    ${(0, ui_1.style)('security diff', c)}     Compare current vs target level`);
     console.log(`      ${(0, ui_1.style)('--level=<level>', g)} Target level to compare against\n`);
+    console.log(`  ${(0, ui_1.style)('Guidance', b)}`);
+    console.log(`    ${(0, ui_1.style)('guidance', c)}          Show guidance subcommand help`);
+    console.log(`    ${(0, ui_1.style)('guidance init', c)}     Install instruction categories (language, scope, …)`);
+    console.log(`      ${(0, ui_1.style)('--categories=<list>', g)} comma-separated ids (default: interactive checkbox)`);
+    console.log(`      ${(0, ui_1.style)('--yes, -y', g)}       Apply all without prompting`);
+    console.log(`    ${(0, ui_1.style)('guidance list', c)}     Show available + installed guidance categories`);
+    console.log(`    ${(0, ui_1.style)('guidance remove', c)}   Uninstall guidance categories`);
+    console.log(`      ${(0, ui_1.style)('--categories=<list>', g)} comma-separated ids to remove\n`);
     console.log(`  ${(0, ui_1.style)('Global Options', b)}`);
     console.log(`    ${(0, ui_1.style)('--provider=<name>', c)}  Target provider (claude,gemini,codex; auto-detect if omitted)`);
     console.log(`    ${(0, ui_1.style)('--help, -h', c)}        Show this help message`);
@@ -157,6 +167,9 @@ async function dispatch() {
             break;
         case 'security':
             await (0, security_1.runSecurity)(subcommand, opts);
+            break;
+        case 'guidance':
+            await (0, guidance_1.runGuidance)(subcommand, opts);
             break;
         case '--version':
             showVersion();

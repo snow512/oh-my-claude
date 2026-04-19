@@ -7,6 +7,7 @@ import type { SummaryResult, CheckboxItem } from './ui';
 import { readJson, writeJson, copyDirRecursive, isDirChanged, backup, timestamp, humanTimestamp, PACKAGE_ROOT, HOME_DIR } from './utils';
 import { resolveProviders, getProvider } from './providers/registry';
 import type { Provider, SecurityLevelConfig } from './providers/types';
+import { applyGuidanceCategories, getGuidanceCategories, parseCategories as parseGuidanceCategories, InvalidCategoriesError } from './guidance';
 
 // --- Types ---
 
@@ -24,6 +25,7 @@ export interface Opts {
   provider?: string;
   level?: string;
   type?: string;
+  categories?: string;
 }
 
 interface CloneItem {
@@ -85,7 +87,7 @@ export async function runInit(opts: Opts = {}): Promise<void> {
     }
 
     const steps = provider.getInitSteps();
-    const totalSteps = steps.length + 1; // +1 for security step
+    const totalSteps = steps.length + 2; // +1 security, +1 guidance
     const results: SummaryResult[] = [];
 
     for (let i = 0; i < steps.length; i++) {
@@ -94,10 +96,15 @@ export async function runInit(opts: Opts = {}): Promise<void> {
       results.push({ ok: result.ok, label: result.label, detail: result.detail });
     }
 
-    // Final step: security (auto-applied at level=normal unless --level overrides)
-    renderStep(totalSteps, totalSteps, 'Security');
+    // Security step: auto-applied at level=normal unless --level overrides
+    renderStep(steps.length + 1, totalSteps, 'Security');
     const securityResult = applySecurityToProvider(provider, opts.level || 'normal');
     results.push({ ok: securityResult.ok, label: securityResult.label, detail: securityResult.detail });
+
+    // Guidance step: apply selected categories (default: all)
+    renderStep(totalSteps, totalSteps, 'Guidance');
+    const guidanceResult = await applyGuidanceToProvider(provider, opts, useDefaults);
+    results.push({ ok: guidanceResult.ok, label: guidanceResult.label, detail: guidanceResult.detail });
 
     renderSummary(results);
   }
@@ -128,6 +135,30 @@ function applySecurityToProvider(provider: Provider, level: string): SummaryResu
   }
 
   return { ok: true, label: 'Security', detail: `level: ${lvl}` };
+}
+
+async function applyGuidanceToProvider(provider: Provider, opts: Opts, useDefaults: boolean): Promise<SummaryResult> {
+  const all = getGuidanceCategories();
+
+  let ids: string[];
+  if (opts.categories) {
+    try { ids = parseGuidanceCategories(opts.categories, all); }
+    catch (err) {
+      if (err instanceof InvalidCategoriesError) return { ok: false, label: 'Guidance', detail: `unknown: ${err.invalid.join(', ')}` };
+      throw err;
+    }
+  } else if (useDefaults) {
+    ids = all.map(c => c.id);
+  } else {
+    const items: CheckboxItem[] = all.map(c => ({ name: c.id, desc: c.description }));
+    console.log(`\n  ${style('Select guidance categories to install:', C.bold)}`);
+    ids = await checkbox(items);
+  }
+
+  if (ids.length === 0) return { ok: true, label: 'Guidance', detail: 'skipped' };
+
+  applyGuidanceCategories(provider, ids);
+  return { ok: true, label: 'Guidance', detail: ids.join(', ') };
 }
 
 // --- Install ---

@@ -121,4 +121,10 @@ export interface Provider {
   readSecurityBlock(): string | null;
   writeSecurityBlock(content: string): void;
   removeSecurityBlock(): void;
+
+  // --- Guidance ---
+  readGuidanceBlock(category: string): string | null;
+  writeGuidanceBlock(category: string, content: string): void;
+  removeGuidanceBlock(category: string): void;
+  listInstalledGuidance(): string[];
 }

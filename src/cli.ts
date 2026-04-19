@@ -5,6 +5,7 @@ import type { Opts } from './installer';
 import { renderBanner, C, style } from './ui';
 import { runLogin, runPush, runPull } from './sync';
 import { runSecurity } from './security';
+import { runGuidance } from './guidance';
 
 // --- Parse args ---
 
@@ -34,6 +35,7 @@ const opts: Opts = {
   provider: getFlag('provider') || undefined,
   level:    getFlag('level') || undefined,
   type:     getFlag('type') || undefined,
+  categories: getFlag('categories') || undefined,
 };
 
 // --- Help ---
@@ -109,6 +111,15 @@ function showHelp(): void {
   console.log(`    ${style('security diff', c)}     Compare current vs target level`);
   console.log(`      ${style('--level=<level>', g)} Target level to compare against\n`);
 
+  console.log(`  ${style('Guidance', b)}`);
+  console.log(`    ${style('guidance', c)}          Show guidance subcommand help`);
+  console.log(`    ${style('guidance init', c)}     Install instruction categories (language, scope, …)`);
+  console.log(`      ${style('--categories=<list>', g)} comma-separated ids (default: interactive checkbox)`);
+  console.log(`      ${style('--yes, -y', g)}       Apply all without prompting`);
+  console.log(`    ${style('guidance list', c)}     Show available + installed guidance categories`);
+  console.log(`    ${style('guidance remove', c)}   Uninstall guidance categories`);
+  console.log(`      ${style('--categories=<list>', g)} comma-separated ids to remove\n`);
+
   console.log(`  ${style('Global Options', b)}`);
   console.log(`    ${style('--provider=<name>', c)}  Target provider (claude,gemini,codex; auto-detect if omitted)`);
   console.log(`    ${style('--help, -h', c)}        Show this help message`);
@@ -143,6 +154,7 @@ async function dispatch(): Promise<void> {
     case 'push':         await runPush(restArgs.length > 0 ? restArgs : undefined, opts); break;
     case 'pull':         await runPull(opts); break;
     case 'security':     await runSecurity(subcommand, opts); break;
+    case 'guidance':     await runGuidance(subcommand, opts); break;
     case '--version':    showVersion(); break;
     case '--help': case '-h': case undefined:
       showHelp(); break;

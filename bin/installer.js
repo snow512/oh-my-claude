@@ -60,6 +60,7 @@ Object.defineProperty(exports, "isDirChanged", { enumerable: true, get: function
 Object.defineProperty(exports, "backup", { enumerable: true, get: function () { return utils_1.backup; } });
 Object.defineProperty(exports, "PACKAGE_ROOT", { enumerable: true, get: function () { return utils_1.PACKAGE_ROOT; } });
 const registry_1 = require("./providers/registry");
+const guidance_1 = require("./guidance");
 // --- Backward compat exports (used by sync.ts) ---
 exports.CLAUDE_DIR = path.join(utils_1.HOME_DIR, '.claude');
 // --- Main: init ---
@@ -105,17 +106,21 @@ async function runInit(opts = {}) {
             console.log(`\n  ${(0, ui_1.style)('⚠', ui_1.C.yellow)} ${(0, ui_1.style)('Cup backup skipped: ' + msg, ui_1.C.gray)}`);
         }
         const steps = provider.getInitSteps();
-        const totalSteps = steps.length + 1; // +1 for security step
+        const totalSteps = steps.length + 2; // +1 security, +1 guidance
         const results = [];
         for (let i = 0; i < steps.length; i++) {
             (0, ui_1.renderStep)(i + 1, totalSteps, steps[i].label);
             const result = await steps[i].execute(useDefaults, lang);
             results.push({ ok: result.ok, label: result.label, detail: result.detail });
         }
-        // Final step: security (auto-applied at level=normal unless --level overrides)
-        (0, ui_1.renderStep)(totalSteps, totalSteps, 'Security');
+        // Security step: auto-applied at level=normal unless --level overrides
+        (0, ui_1.renderStep)(steps.length + 1, totalSteps, 'Security');
         const securityResult = applySecurityToProvider(provider, opts.level || 'normal');
         results.push({ ok: securityResult.ok, label: securityResult.label, detail: securityResult.detail });
+        // Guidance step: apply selected categories (default: all)
+        (0, ui_1.renderStep)(totalSteps, totalSteps, 'Guidance');
+        const guidanceResult = await applyGuidanceToProvider(provider, opts, useDefaults);
+        results.push({ ok: guidanceResult.ok, label: guidanceResult.label, detail: guidanceResult.detail });
         (0, ui_1.renderSummary)(results);
     }
     (0, ui_1.renderDone)(providers.map(p => p.name));
@@ -142,6 +147,32 @@ function applySecurityToProvider(provider, level) {
         provider.removeSecurityBlock();
     }
     return { ok: true, label: 'Security', detail: `level: ${lvl}` };
+}
+async function applyGuidanceToProvider(provider, opts, useDefaults) {
+    const all = (0, guidance_1.getGuidanceCategories)();
+    let ids;
+    if (opts.categories) {
+        try {
+            ids = (0, guidance_1.parseCategories)(opts.categories, all);
+        }
+        catch (err) {
+            if (err instanceof guidance_1.InvalidCategoriesError)
+                return { ok: false, label: 'Guidance', detail: `unknown: ${err.invalid.join(', ')}` };
+            throw err;
+        }
+    }
+    else if (useDefaults) {
+        ids = all.map(c => c.id);
+    }
+    else {
+        const items = all.map(c => ({ name: c.id, desc: c.description }));
+        console.log(`\n  ${(0, ui_1.style)('Select guidance categories to install:', ui_1.C.bold)}`);
+        ids = await (0, ui_1.checkbox)(items);
+    }
+    if (ids.length === 0)
+        return { ok: true, label: 'Guidance', detail: 'skipped' };
+    (0, guidance_1.applyGuidanceCategories)(provider, ids);
+    return { ok: true, label: 'Guidance', detail: ids.join(', ') };
 }
 // --- Install ---
 async function runInstall(target, opts = {}) {

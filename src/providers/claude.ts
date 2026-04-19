@@ -16,6 +16,10 @@ import {
   readSecurityBlockFromFile,
   writeSecurityBlockToFile,
   removeSecurityBlockFromFile,
+  readGuidanceBlockFromFile,
+  writeGuidanceBlockToFile,
+  removeGuidanceBlockFromFile,
+  listInstalledGuidanceInFile,
 } from './base';
 
 export class ClaudeProvider implements Provider {
@@ -446,5 +450,23 @@ export class ClaudeProvider implements Provider {
 
   removeSecurityBlock(): void {
     removeSecurityBlockFromFile(this.getInstructionFilePath('global'));
+  }
+
+  // --- Guidance ---
+
+  readGuidanceBlock(category: string): string | null {
+    return readGuidanceBlockFromFile(this.getInstructionFilePath('global'), category);
+  }
+
+  writeGuidanceBlock(category: string, block: string): void {
+    writeGuidanceBlockToFile(this.getInstructionFilePath('global'), category, block);
+  }
+
+  removeGuidanceBlock(category: string): void {
+    removeGuidanceBlockFromFile(this.getInstructionFilePath('global'), category);
+  }
+
+  listInstalledGuidance(): string[] {
+    return listInstalledGuidanceInFile(this.getInstructionFilePath('global'));
   }
 }

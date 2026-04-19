@@ -80,6 +80,12 @@ cup security                                           # Show security help
 cup security init [--level=loose|normal|strict] [--provider=...] [--yes]
 cup security check [--provider=...] [--verbose]
 cup security diff [--level=...] [--provider=...]
+
+# Guidance
+cup guidance                                           # Show guidance help
+cup guidance init [--categories=language,scope,design,deployment,commit] [--provider=...] [--yes]
+cup guidance list [--provider=...]
+cup guidance remove [--categories=...] [--provider=...] [--yes]
 ```
 
 ## Security Levels
@@ -94,6 +100,20 @@ cup security diff [--level=...] [--provider=...]
 | `strict` | 프로덕션 코드, 팀 협업 |
 
 `cup security check`로 현재 보안 상태를 점검할 수 있습니다.
+
+## Guidance Categories
+
+`cup guidance init`은 LLM 응답 지침을 user instruction file (`CLAUDE.md` / `GEMINI.md` / `AGENTS.md`) 에 카테고리별 marker block 으로 주입합니다. `cup init` 실행 시 마지막 단계에서 자동 적용 (default: 전체 카테고리).
+
+| Category | 내용 |
+|----------|------|
+| `language` | Response 언어 규칙 (Korean + selective English) |
+| `scope` | 요청 범위 확장 금지; observation vs instruction 구분 |
+| `design` | 구조적 문제 발생 시 patch 대신 redesign; identity explicit |
+| `deployment` | Production 배포는 명시적 지시 필요 |
+| `commit` | Conventional Commits + `Co-Authored-By` |
+
+`cup guidance list`로 현재 적용된 카테고리를 확인할 수 있고, `cup guidance remove --categories=...`로 개별 제거할 수 있습니다. 각 카테고리는 `<!-- <cup-guidance-<id>> --> ... <!-- </cup-guidance-<id>> -->` marker 로 감싸져 있어 다른 섹션과 섞여도 안전하게 관리됩니다.
 
 ## Provider Auto-Detection
 
